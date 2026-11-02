@@ -1,7 +1,7 @@
 # 기능명세서 (Feature Specification)
 
 > 산출물 툴: **AOSP Framework 1-Day 패치 기반 분석·유사 취약점 탐지 도구**
-> 상태: 초안 (v0.1, 2026-11-02) — 팀 리뷰 후 확정
+> 상태: 초안 (v0.2, 2026-11-02 — 산출물 형태를 웹 대시보드로 확정) — 팀 리뷰 후 확정
 
 ## 1. 개요
 
@@ -16,6 +16,15 @@ CVE/패치 입력
 → 후보 우선순위화
 → 패치 전후 검증
 → HTML/Markdown 보고서 생성
+```
+
+### 산출물 형태
+
+최종 산출물은 **웹 대시보드**다. 사용자는 브라우저에서 CVE를 입력하고, 단계별 진행 상황·분석 결과·후보·검증 결과·보고서를 한 곳에서 본다. 내부 파이프라인(M1~M9)은 CLI로도 돌릴 수 있게 두고, 대시보드는 그 결과 JSON을 읽어 보여준다.
+
+```
+[브라우저] ⇄ [Web Dashboard (Frontend)] ⇄ [Backend API] → 파이프라인 작업 실행 (M1~M9)
+                                                  ↘ output/<CVE-ID>/*.json 읽기
 ```
 
 ### 범위
@@ -40,7 +49,7 @@ CVE/패치 입력
 | M7. Prioritizer | `candidates.json` | `ranked_candidates.json` | 6주 |
 | M8. Verifier (동적 검증) | CVE/후보 + 테스트 템플릿 | `verification.json` + 로그 | 7주 |
 | M9. Reporter | 위 JSON 전부 | `report.html`, `report.md` | 8주 |
-| M10. Interface | 사용자 명령 | CLI / Streamlit 화면 | 6·8주 |
+| M10. Web Dashboard | 사용자 조작 + 모든 단계의 JSON | 웹 대시보드 (최종 산출물) | 6·8주 |
 | M11. Evaluation | 정답 데이터 + 결과 | `eval.json`, 평가표 | 8주 |
 
 모든 모듈은 **독립 실행 가능**(단계별 CLI 서브커맨드)하고, 앞 단계의 JSON만 있으면 다음 단계를 다시 돌릴 수 있어야 한다.
@@ -133,13 +142,46 @@ CVE/패치 입력
 | F-903 | 근거 링크 | 각 주장마다 diff 줄·로그 위치 링크 | P1 |
 | F-904 | 공개용 마스킹 | 미공개 후보·위험 입력 제거한 공개용 버전 생성 (책임 있는 공개) | P1 |
 
-### M10. Interface
+### M10. Web Dashboard — 최종 산출물
+
+#### 화면 구성
+
+| ID | 화면 | 보여주는 것 / 할 수 있는 것 | 데이터 | 우선순위 |
+| --- | --- | --- | --- | --- |
+| D-1 | 홈 (CVE 목록) | 분석한 CVE 목록, 컴포넌트·심각도·진행 상태·재현 결과 요약, 검색/필터 | `cve.json`, `verification.json` | P0 |
+| D-2 | 새 분석 실행 | CVE ID / 커밋 URL 입력 → 실행, 단계별 진행률(수집→분석→경로→패턴→스캔→검증→보고서), 실패 단계·에러 로그 | 작업 상태 API | P0 |
+| D-3 | CVE 상세 — 패치 | 보안 공지 정보, 패치 diff 뷰어(추가·삭제 하이라이트), 변경 클래스·메서드·변경 유형 | `cve.json`, `patch_analysis.json` | P0 |
+| D-4 | CVE 상세 — 원인 분석 | 근본 원인, 발생 조건 가설, 보안 불변식, 근거 클릭 시 diff 해당 줄로 이동 | `root_cause.json` | P0 |
+| D-5 | CVE 상세 — 호출 경로 | Binder 진입점 → 변경 함수 호출 그래프, 일반 앱 노출 여부 | `call_path.json` | P1 |
+| D-6 | 패턴 / 규칙 | 추출 패턴(source·guard·sink), 생성된 규칙 원문, 취약·패치 버전 자가 검증 결과 | `pattern.json` | P0 |
+| D-7 | 유사 후보 | 스캔 후보 표(점수순), 점수 근거, 코드 위치 미리보기, TP/FP/보류 라벨링 | `ranked_candidates.json` | P0 |
+| D-8 | 검증 결과 | 취약 vs 패치 버전 결과 나란히 비교, 판정, logcat 펼치기, 실패 원인 | `verification.json` | P0 |
+| D-9 | 보고서 | 보고서 미리보기, HTML/Markdown 다운로드, 공개용(마스킹) 버전 다운로드 | `report.*` | P0 |
+| D-10 | 평가 | 정확도·탐지율·오탐률·시간 절감 지표 차트, CVE별 비교표 | `eval.json` | P1 |
+| D-11 | 설정 | AOSP 경로, LLM 모델, Emulator 설정 확인/수정 | `config.yaml` | P2 |
+
+#### 기능
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
-| F-1001 | CLI | `run` (전체), `collect`/`analyze`/`scan`/`verify`/`report` (단계별) | P0 |
-| F-1002 | Streamlit 화면 | CVE 입력 → 단계별 진행 상태 → 후보 목록 → 보고서 보기 | P1 |
-| F-1003 | 설정 파일 | AOSP 경로, LLM 키/모델, Emulator 설정을 `config.yaml`로 관리 | P0 |
+| F-1001 | Backend API | 파이프라인 실행·상태 조회·결과 조회 REST API (아래 표) | P0 |
+| F-1002 | 비동기 작업 실행 | 분석은 오래 걸리므로 작업 큐로 실행하고 진행 상태를 폴링/웹소켓으로 갱신 | P0 |
+| F-1003 | 단계별 재실행 | 특정 단계부터 다시 실행 (예: 패턴만 다시 생성) | P1 |
+| F-1004 | CLI 유지 | 대시보드 없이도 `run`/`collect`/`analyze`/`scan`/`verify`/`report` 실행 가능 (개발·디버깅용) | P0 |
+| F-1005 | 설정 파일 | AOSP 경로, LLM 키/모델, Emulator 설정을 `config.yaml`로 관리 (키는 환경변수, 리포에 커밋 금지) | P0 |
+| F-1006 | 데모 모드 | 미리 돌려둔 결과 JSON만으로 화면 시연 (발표용, Emulator 없이) | P1 |
+
+#### Backend API 초안
+
+| Method | Endpoint | 설명 |
+| --- | --- | --- |
+| POST | `/api/analyses` | 새 분석 실행 (`{ "cve_id" }` 또는 `{ "commit_url" }`) |
+| GET | `/api/analyses` | 분석 목록 |
+| GET | `/api/analyses/{cve_id}` | 진행 상태 + 단계별 결과 요약 |
+| GET | `/api/analyses/{cve_id}/{stage}` | 단계 결과 JSON (`patch`, `call_path`, `root_cause`, `pattern`, `candidates`, `verification`) |
+| PATCH | `/api/candidates/{id}` | 후보 라벨 수정 (TP/FP/보류) |
+| GET | `/api/analyses/{cve_id}/report?format=html\|md&public=true` | 보고서 다운로드 |
+| GET | `/api/eval` | 평가 지표 |
 
 ### M11. Evaluation
 
@@ -190,7 +232,8 @@ CVE/패치 입력
 | --- | --- |
 | 재현성 | 같은 입력이면 같은 결과 (LLM은 temperature 고정, 프롬프트·모델 버전 기록) |
 | 추적성 | 모든 결과에 근거(diff 줄, 로그 위치) 연결 |
-| 모듈성 | 단계별 독립 실행, JSON으로만 연결 |
+| 모듈성 | 단계별 독립 실행, JSON으로만 연결 (대시보드도 JSON만 읽음) |
+| 접근 제어 | 대시보드는 기본 로컬/팀 내부 접근만, 미공개 후보 화면은 외부 공개 금지 |
 | 실행 환경 | Linux, Python 3.11+, AOSP 소스 체크아웃, Android SDK/ADB/Emulator |
 | 윤리 | 실제 공격용 exploit 미포함, 미공개 후보는 공개 보고서에서 마스킹 |
 
@@ -201,3 +244,5 @@ CVE/패치 입력
 - [ ] 규칙 엔진: Semgrep vs Tree-sitter 중 하나로 통일할지
 - [ ] Emulator vs Cuttlefish
 - [ ] 사용할 LLM / API 키 관리 방식
+- [ ] 대시보드 기술 스택 (예: FastAPI + React / Next.js, 또는 FastAPI + Streamlit으로 빠르게)
+- [ ] 대시보드 배포 방식 (로컬 실행 vs 서버 배포, 공개 시 미공개 후보 노출 금지)

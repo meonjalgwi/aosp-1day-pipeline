@@ -33,7 +33,8 @@ CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패
 - **M6 Scanner / M7 Prioritizer** — `frameworks/base` 스캔 후 후보 점수화, 상위 10~20건 출력
 - **M8 Verifier** — Emulator 초기화 → APK 설치 → 테스트 → 로그 수집, 패치 전후 차등 판정
 - **M9 Reporter** — 근거 로그·diff를 포함한 HTML/Markdown 보고서
-- **M10 Interface / M11 Evaluation** — CLI·Streamlit 화면, 정확도·탐지율·오탐률·시간 절감 평가
+- **M10 Web Dashboard (최종 산출물)** — CVE 입력·진행 상태·분석 결과·후보·검증·보고서를 보는 웹 대시보드
+- **M11 Evaluation** — 정확도·탐지율·오탐률·시간 절감 평가
 
 기능 상세는 [docs/feature-spec.md](docs/feature-spec.md) 참고.
 
@@ -68,7 +69,7 @@ modules/
   m07-prioritizer/        # M7. Prioritizer
   m08-verifier/           # M8. Verifier
   m09-reporter/           # M9. Reporter
-  m10-interface/          # M10. Interface
+  m10-dashboard/          # M10. Web Dashboard (최종 산출물)
   m11-evaluation/         # M11. Evaluation
 docs/
   roadmap.md        # 8주 계획

@@ -24,9 +24,9 @@
 | 3주 | 11/9~11/15 | 수동 기준선 및 Patch Analyzer | M2 Patch Analyzer | 기준선 CVE 1개를 사람이 직접 분석하여 정답 데이터 작성. Tree-sitter 기반으로 변경 클래스·메서드·조건문·권한 검사·예외 처리를 추출하는 Patch Analyzer 구현. 수동 분석 결과와 비교 | 현아 |
 | 4주 | 11/16~11/23 | Binder 분석 및 AI 보조 분석 | M3 Binder Path, M4 Root Cause | AIDL 인터페이스와 구현 클래스를 연결하고 외부 진입점부터 변경 함수까지 호출 경로 추출. 패치 증거를 기반으로 근본 원인·보안 불변식·발생 조건을 JSON으로 생성. CVE 1건의 end-to-end 분석 완료 | 현아 (M4) / M3 TBD |
 | 5주 | 11/24~11/30 | 취약 패턴 및 탐지 규칙 생성 | M5 Pattern/Rule | 패치에서 source·guard·sink와 보안 불변식을 추출. 권한 검사, UID–packageName, Cross-user 등 패턴 3종 이상 구현. Tree-sitter 또는 Semgrep 규칙으로 변환하고 취약·패치 버전에서 규칙 검증 | TBD |
-| 6주 | 12/1~12/7 | AOSP 유사 취약점 스캔 | M6 Scanner, M7 Prioritizer, M10 CLI | 생성된 규칙을 `frameworks/base`에 적용. Binder 노출 여부, 민감 동작, 검증 누락 여부로 후보 점수화. 상위 후보 10~20건을 출력하는 Scanner와 간단한 CLI/Streamlit 화면 구현 | TBD |
+| 6주 | 12/1~12/7 | AOSP 유사 취약점 스캔 | M6 Scanner, M7 Prioritizer, M10 Dashboard | 생성된 규칙을 `frameworks/base`에 적용. Binder 노출 여부, 민감 동작, 검증 누락 여부로 후보 점수화. 상위 후보 10~20건을 출력하는 Scanner 구현. 웹 대시보드 v1 (Backend API + CVE 목록·상세·후보 화면) | TBD |
 | 7주 | 12/8~12/14 | 재현 및 동적 검증 | M8 Verifier | 공개 CVE 2~3건에 테스트 APK 또는 instrumentation template 적용. Emulator 초기화 → APK 설치 → 테스트 → 로그 수집을 자동화. 취약·패치 버전 차등 판정. 신규 후보는 상위 항목부터 수동·동적 검토 | 서진 (Harness) / 실행·판정 TBD |
-| 8주 | 12/15~12/21 | 통합·평가·발표 | M9 Reporter, M11 Evaluation | 기능 동결 후 Collector, Analyzer, Pattern Generator, Scanner, Verifier 통합. 정확도·탐지율·시간 절감·오탐률 평가. HTML 보고서, 최종 발표, 데모 영상, 책임 있는 공개용 자료 작성 | 전원 |
+| 8주 | 12/15~12/21 | 통합·평가·발표 | M9 Reporter, M10 Dashboard, M11 Evaluation | 기능 동결 후 Collector, Analyzer, Pattern Generator, Scanner, Verifier 통합. 정확도·탐지율·시간 절감·오탐률 평가. 웹 대시보드 완성(검증·보고서·평가 화면, 데모 모드), HTML 보고서, 최종 발표, 데모 영상, 책임 있는 공개용 자료 작성 | 전원 |
 
 ## 협업 규칙
 
