@@ -30,10 +30,10 @@ AOSP Framework 또는 system_server 영역에서 공개 패치가 존재하는 1
 ## 진행 방식
 
 - **1~6주차 (설계·프로토타입 단계)**: 담당자별로 자기 Agent를 설계·구현하고, 서로 PR로 리뷰하며 설계를 보완합니다.
-  - 나연 — Collector Agent
-  - 현아 — Patch Analyst Agent
-  - 서진 — Harness Agent
-- **7~14주차 (통합·구현 단계, 마지막 2개월)**: 나연이 Executor/Verifier/Reporter Agent 구현과 전체 파이프라인 통합을 담당합니다.
+  - @zv9uvr — Collector Agent
+  - @gusdkcjs4 — Patch Analyst Agent
+  - @seojinn0713 — Harness Agent
+- **7~14주차 (통합·구현 단계, 마지막 2개월)**: @zv9uvr가 Executor/Verifier/Reporter Agent 구현과 전체 파이프라인 통합을 담당합니다.
 
 자세한 주차별 계획은 [docs/roadmap.md](docs/roadmap.md) 참고.
 
