@@ -16,3 +16,9 @@
 - [ ] diff 및 변경 전/후 파일 저장
 - [ ] 잘못된 링크·비공개 버그 예외 처리
 - [ ] CLI 서브커맨드 `collect`
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m01_collector.py`](../../aosp1day/stages/m01_collector.py)
+- 클래스: `Collector`
+- CLI: `aosp1day collect <CVE-ID>`

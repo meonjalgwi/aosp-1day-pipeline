@@ -16,3 +16,9 @@
 - [ ] 초기화 → 설치 → 테스트 → logcat 수집 자동화
 - [ ] 취약·패치 버전 차등 판정
 - [ ] 실패 원인 분류
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py)
+- 클래스: `Verifier`
+- CLI: `aosp1day verify <CVE-ID>`

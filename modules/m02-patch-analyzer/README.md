@@ -16,3 +16,9 @@
 - [ ] 변경 유형 분류 (권한 검사/입력 검증/조건문/예외 처리)
 - [ ] 권한 검사 API 인식
 - [ ] 정답 데이터와 비교
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m02_patch_analyzer.py`](../../aosp1day/stages/m02_patch_analyzer.py)
+- 클래스: `PatchAnalyzer`
+- CLI: `aosp1day analyze <CVE-ID>`

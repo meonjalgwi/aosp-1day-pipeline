@@ -19,3 +19,9 @@
 - [ ] D-6 패턴·규칙 / D-7 유사 후보 (라벨링)
 - [ ] D-8 검증 결과 / D-9 보고서
 - [ ] D-10 평가 / 데모 모드
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/dashboard/`](../../aosp1day/dashboard/)
+- 클래스: `DashboardApp`
+- CLI: `aosp1day serve <CVE-ID>`

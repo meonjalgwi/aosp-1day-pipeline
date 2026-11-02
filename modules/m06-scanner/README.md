@@ -13,3 +13,9 @@
 
 - [ ] `frameworks/base` 전체 스캔
 - [ ] 중복 결과 병합
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m06_scanner.py`](../../aosp1day/stages/m06_scanner.py)
+- 클래스: `Scanner`
+- CLI: `aosp1day scan <CVE-ID>`
