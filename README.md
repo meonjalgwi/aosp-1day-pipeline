@@ -54,13 +54,18 @@ CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패
 ## 디렉터리 구조
 
 ```
-agents/
-  collector/       # Collector Agent
-  patch-analyst/   # Patch Analyst Agent (Hypothesis 포함)
-  harness/         # Harness Agent
-  executor/        # Executor Agent
-  verifier/        # Verifier Agent
-  reporter/        # Reporter Agent
+modules/
+  m01-collector/          # M1. Collector
+  m02-patch-analyzer/     # M2. Patch Analyzer
+  m03-binder-path/        # M3. Binder Path Analyzer
+  m04-root-cause/         # M4. Root Cause Analyzer
+  m05-pattern-generator/  # M5. Pattern / Rule Generator
+  m06-scanner/            # M6. Scanner
+  m07-prioritizer/        # M7. Prioritizer
+  m08-verifier/           # M8. Verifier
+  m09-reporter/           # M9. Reporter
+  m10-interface/          # M10. Interface
+  m11-evaluation/         # M11. Evaluation
 docs/
   roadmap.md        # 8주 계획
   feature-spec.md   # 기능명세서
