@@ -18,22 +18,29 @@ AOSP Framework 또는 system_server 영역에서 공개 패치가 존재하는 1
 
 대상 범위: 공개 패치가 존재하는 2023~2025년 AOSP Framework/system_server CVE
 
-## 시스템 구성 (Agent)
+## 시스템 구성 (모듈)
 
-- **Collector Agent** — 보안 공지·AOSP 패치 수집, CVE별 영향 버전/컴포넌트/패치 커밋을 구조화된 JSON으로 저장
-- **Patch Analyst Agent** — 변경된 클래스·메서드·조건문 분석 및 취약점 발생 조건 가설 생성 (Hypothesis 기능 포함)
-- **Harness Agent** — 가설을 검증할 테스트 APK / instrumentation test 생성
-- **Executor Agent** — Emulator 초기화, APK 설치, ADB 실행, 로그 수집 자동화
-- **Verifier Agent** — logcat·예외·서비스 상태를 패치 전후로 비교해 재현 여부 판정
-- **Reporter Agent** — 근거 로그·diff를 포함한 HTML/Markdown 분석 보고서 생성
+```
+CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패턴 추출
+→ AOSP 유사 코드 스캔 → 후보 우선순위화 → 패치 전후 검증 → HTML/Markdown 보고서
+```
+
+- **M1 Collector** — CVE/패치 커밋의 메타데이터·부모 커밋·diff·변경 파일을 JSON으로 저장
+- **M2 Patch Analyzer** — Tree-sitter로 변경 클래스·메서드·조건문·권한 검사·예외 처리 추출
+- **M3 Binder Path Analyzer** — AIDL ↔ 구현 클래스 연결, 외부 진입점부터 변경 함수까지 호출 경로
+- **M4 Root Cause Analyzer (AI)** — 패치 증거 기반 근본 원인·보안 불변식·발생 조건 생성
+- **M5 Pattern / Rule Generator** — source·guard·sink 패턴을 Semgrep/Tree-sitter 규칙으로 변환
+- **M6 Scanner / M7 Prioritizer** — `frameworks/base` 스캔 후 후보 점수화, 상위 10~20건 출력
+- **M8 Verifier** — Emulator 초기화 → APK 설치 → 테스트 → 로그 수집, 패치 전후 차등 판정
+- **M9 Reporter** — 근거 로그·diff를 포함한 HTML/Markdown 보고서
+- **M10 Interface / M11 Evaluation** — CLI·Streamlit 화면, 정확도·탐지율·오탐률·시간 절감 평가
+
+기능 상세는 [docs/feature-spec.md](docs/feature-spec.md) 참고.
 
 ## 진행 방식
 
-- **1~6주차 (설계·프로토타입 단계)**: 담당자별로 자기 Agent를 설계·구현하고, 서로 PR로 리뷰하며 설계를 보완합니다.
-  - 나연 — Collector Agent
-  - 현아 — Patch Analyst Agent
-  - 서진 — Harness Agent
-- **7~14주차 (통합·구현 단계, 마지막 2개월)**: 나연이 Executor/Verifier/Reporter Agent 구현과 전체 파이프라인 통합을 담당합니다.
+- 총 **8주** (10/26 ~ 12/21). 1주차에 범위·설계를 확정하고, 2~7주차에 모듈을 순서대로 구현, 8주차에 통합·평가·발표.
+- 모듈별 담당자는 팀 논의 후 확정합니다.
 
 자세한 주차별 계획은 [docs/roadmap.md](docs/roadmap.md) 참고.
 
@@ -55,5 +62,6 @@ agents/
   verifier/        # Verifier Agent
   reporter/        # Reporter Agent
 docs/
-  roadmap.md        # 14주차 계획 및 담당자
+  roadmap.md        # 8주 계획
+  feature-spec.md   # 기능명세서
 ```
