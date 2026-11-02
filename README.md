@@ -40,7 +40,11 @@ CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패
 ## 진행 방식
 
 - 총 **8주** (10/26 ~ 12/21). 1주차에 범위·설계를 확정하고, 2~7주차에 모듈을 순서대로 구현, 8주차에 통합·평가·발표.
-- 모듈별 담당자는 팀 논의 후 확정합니다.
+- 담당
+  - 나연 — Collector (M1)
+  - 현아 — Patch Analyst (M2 패치 분석 + M4 발생 조건 가설)
+  - 서진 — Harness (M8의 테스트 APK / instrumentation test 생성)
+  - 나머지 모듈은 추후 배정
 
 자세한 주차별 계획은 [docs/roadmap.md](docs/roadmap.md) 참고.
 

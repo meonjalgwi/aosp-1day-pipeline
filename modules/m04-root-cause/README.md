@@ -1,7 +1,7 @@
 # M4. Root Cause Analyzer — AI 보조 원인 분석
 
 - 주차: 4주
-- 담당: TBD
+- 담당: 현아 ([@gusdkcjs4](https://github.com/gusdkcjs4)) — 취약점 발생 조건 가설 생성
 - 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) F-401~F-404
 
 ## 입력 / 출력

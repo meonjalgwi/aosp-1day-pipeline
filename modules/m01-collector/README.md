@@ -1,7 +1,7 @@
 # M1. Collector — CVE/패치 수집
 
 - 주차: 2주
-- 담당: TBD
+- 담당: 나연 ([@zv9uvr](https://github.com/zv9uvr))
 - 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) F-101~F-106
 
 ## 입력 / 출력

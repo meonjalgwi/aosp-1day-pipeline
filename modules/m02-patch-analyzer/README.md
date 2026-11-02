@@ -1,7 +1,7 @@
 # M2. Patch Analyzer — 패치 분석
 
 - 주차: 3주
-- 담당: TBD
+- 담당: 현아 ([@gusdkcjs4](https://github.com/gusdkcjs4))
 - 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) F-201~F-204
 
 ## 입력 / 출력
