@@ -2,23 +2,21 @@
 
 - 주차: 6주 (v1) · 8주 (완성)
 - 담당: TBD
-- 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) M10 (화면 D-1~D-11, 기능 F-1001~F-1006)
+- 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) M10 (Streamlit 단독, P0 화면 D-1·D-3·D-4·D-6~D-9)
 
 ## 입력 / 출력
 
-- 입력: 사용자 조작 (CVE 입력, 라벨링) + `output/<CVE-ID>/*.json`
+- 입력: 미리 생성된 `output/<CVE-ID>/*.json`
 - 출력: 브라우저 대시보드, 보고서 다운로드
 
 ## 진행 상태
 
-- [ ] 기술 스택 결정
-- [ ] Backend API (분석 실행·상태·결과 조회)
-- [ ] 비동기 작업 실행 + 진행 상태 표시
-- [ ] D-1 CVE 목록 / D-2 새 분석 실행
-- [ ] D-3 패치 diff / D-4 원인 분석
-- [ ] D-6 패턴·규칙 / D-7 유사 후보 (라벨링)
-- [ ] D-8 검증 결과 / D-9 보고서
-- [ ] D-10 평가 / 데모 모드
+- [ ] D-1 CVE 목록
+- [ ] D-3 패치 / D-4 Root Cause (inferred 표시, 근거 코드)
+- [ ] D-6 Source–Guard–Sink 패턴
+- [ ] D-7 후보 순위와 코드 근거
+- [ ] D-8 검증 결과 / D-9 보고서 다운로드
+- [ ] (P1) 공개용 마스킹 모드, D-5 호출 경로, D-10 평가, 후보 라벨링
 
 ## 설계 뼈대 (코드)
 

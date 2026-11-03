@@ -11,7 +11,9 @@
 
 ## 진행 상태
 
-- [ ] LLM 프롬프트 설계
+- [ ] `LlmClient` 인터페이스 (provider 교체 가능, 키는 환경변수)
+- [ ] LLM 프롬프트 설계 (hunk 전/후 코드 + change_id 포함)
+- [ ] 결과 `status=inferred` + provider·model·prompt hash 기록
 - [ ] 근거(diff 줄·파일 위치) 연결
 - [ ] JSON 스키마 검증 및 재시도
 - [ ] CVE 1건 end-to-end 분석
