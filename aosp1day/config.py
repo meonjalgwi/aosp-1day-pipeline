@@ -1,11 +1,12 @@
 """설정 로더 (F-1005).
 
-AOSP 경로, LLM 모델, Emulator 설정 등을 ``config.yaml`` 로 관리한다.
-API 키는 리포에 커밋하지 않고 환경변수로 받는다.
+AOSP 경로, LLM, 검증 기기 설정을 ``config.yaml`` 로 관리한다 (리포에는 config.example.yaml 만 커밋).
+API 키는 config 에 쓰지 않는다 — 환경변수 이름(api_key_env)만 기록하고 값은 실행 시 환경변수에서 읽는다.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,21 +14,24 @@ from pathlib import Path
 
 @dataclass
 class LlmConfig:
-    provider: str = "anthropic"
-    model: str = "claude-opus-4-8"
+    provider: str = ""                # 예: anthropic | openai — 팀 결정 후 config.yaml 에 기록
+    model: str = ""
     temperature: float = 0.0          # 재현성: temperature 고정
-    api_key_env: str = "ANTHROPIC_API_KEY"
+    api_key_env: str = "LLM_API_KEY"  # 키 값이 아니라 환경변수 "이름"
 
     @property
     def api_key(self) -> str | None:
+        """실행 시점에만 읽는다. 로그·JSON 에 남기지 말 것."""
         return os.environ.get(self.api_key_env)
 
 
 @dataclass
-class EmulatorConfig:
-    kind: str = "emulator"            # emulator | cuttlefish
-    snapshot: str = "clean"
-    boot_timeout_sec: int = 120
+class DeviceConfig:
+    kind: str = "cuttlefish"          # cuttlefish (1차) | emulator (2주차 기준 미달 시)
+    vulnerable_image: str = ""        # 패치 전 이미지 / 빌드 ID / jar 경로
+    patched_image: str = ""           # 패치 후
+    snapshot: str = "clean"           # emulator 일 때만
+    boot_timeout_sec: int = 300
 
 
 @dataclass
@@ -35,16 +39,34 @@ class Config:
     aosp_root: Path = Path("aosp/frameworks/base")
     output_root: Path = Path("output")
     rules_dir: Path = Path("rules")
+    baselines_dir: Path = Path("baselines")
     llm: LlmConfig = field(default_factory=LlmConfig)
-    emulator: EmulatorConfig = field(default_factory=EmulatorConfig)
+    device: DeviceConfig = field(default_factory=DeviceConfig)
 
     @classmethod
     def load(cls, path: str | Path = "config.yaml") -> "Config":
-        """config.yaml 로드. 없으면 기본값.
-
-        TODO: PyYAML 로 실제 파싱 (현재는 skeleton 기본값 반환).
-        """
+        """config.yaml 로드. 파일이 없으면 기본값."""
         p = Path(path)
         if not p.is_file():
             return cls()
-        raise NotImplementedError("config.yaml 파싱 (PyYAML) 미구현")
+        try:
+            import yaml  # type: ignore[import-untyped]
+        except ImportError as e:
+            raise RuntimeError("config.yaml 을 읽으려면 PyYAML 이 필요합니다: pip install pyyaml") from e
+        return cls.from_dict(yaml.safe_load(p.read_text()) or {})
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Config":
+        cfg = cls()
+        for f in dataclasses.fields(cls):
+            if f.name not in data:
+                continue
+            value = data[f.name]
+            current = getattr(cfg, f.name)
+            if dataclasses.is_dataclass(current):
+                setattr(cfg, f.name, type(current)(**value))
+            elif isinstance(current, Path):
+                setattr(cfg, f.name, Path(value))
+            else:
+                setattr(cfg, f.name, value)
+        return cfg

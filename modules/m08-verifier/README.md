@@ -19,6 +19,7 @@
 
 ## 설계 뼈대 (코드)
 
-- 구현 위치: [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py)
-- 클래스: `Verifier`
-- CLI: `aosp1day verify <CVE-ID>`
+- Harness (서진): [`aosp1day/stages/m08_harness.py`](../../aosp1day/stages/m08_harness.py) — 클래스 `Harness`, CLI `aosp1day harness <CVE-ID>`
+  - 입력 `root_cause.json`(hypotheses) + `call_path.json` → 출력 `test_cases.json`(`TestCase`) + APK
+- 실행·판정: [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py) — 클래스 `Verifier`, CLI `aosp1day verify <CVE-ID>`
+  - 입력 `test_cases.json` → 출력 `verification.json`(`TestVerdict` 목록, 빌드 정보·logcat 경로 포함)

@@ -1,12 +1,15 @@
 """M11. Evaluation — 평가 (8주차, F-1101~F-1104).
 
-입력: 정답 데이터 + 각 단계 결과
-출력: eval.json, 평가표
+입력: baselines/<CVE-ID>.json (Baseline) + 각 CVE 의 산출물
+출력: output/eval.json (CVE 디렉터리가 아니라 output 최상위)
 """
 
 from __future__ import annotations
 
-from ..schemas import Evaluation, PatchAnalysis, RankedCandidates
+from pathlib import Path
+
+from ..schemas import Baseline, CveEval, Evaluation, PatchAnalysis, RankedCandidates, RootCause
+from ..storage import Store
 from .base import PipelineContext, Stage, StageResult
 
 
@@ -17,29 +20,40 @@ class Evaluator(Stage):
     writes = (Evaluation.ARTIFACT,)
 
     def run(self, ctx: PipelineContext) -> StageResult:
-        groundtruth = ctx.params.get("groundtruth")
-        result = self.evaluate(groundtruth, ctx)
-        path = ctx.store.save(result)
+        baselines_dir = Path(ctx.params.get("baselines", "baselines"))
+        result = Evaluation()
+        for baseline in self.load_baselines(baselines_dir):
+            result.per_cve.append(self.evaluate_cve(baseline, Store(ctx.config.output_root, baseline.cve_id)))
+        self.aggregate(result)
+        root = Store(ctx.config.output_root, "")          # output/eval.json
+        path = root.save(result, stage=self.name)
         return StageResult(self.name, ok=True, artifacts=[path])
 
     # --- 세부 기능 ---------------------------------------------------------
 
-    def evaluate(self, groundtruth, ctx: PipelineContext) -> Evaluation:
-        """네 지표를 묶어 Evaluation 생성."""
+    def load_baselines(self, baselines_dir: Path) -> list[Baseline]:
         raise NotImplementedError
 
-    def analysis_accuracy(self, analysis: PatchAnalysis, groundtruth) -> float:
-        """F-1101. 기준선 정답 대비 변경 함수·원인 일치율."""
+    def evaluate_cve(self, baseline: Baseline, store: Store) -> CveEval:
+        """CVE 하나: 변경 메서드 일치율, 원인 일치(사람 판정), 재현 여부, 소요 시간."""
         raise NotImplementedError
 
-    def detection_rate(self, ranked: RankedCandidates, known_cves) -> float:
-        """F-1102. 알려진 CVE 를 규칙이 다시 찾아내는 비율."""
+    def aggregate(self, result: Evaluation) -> None:
+        """F-1101~F-1104 지표 계산해 result 에 채움."""
+        raise NotImplementedError
+
+    def method_match(self, analysis: PatchAnalysis, baseline: Baseline) -> float:
+        """F-1101. 정답 changed_methods 대비 일치율."""
+        raise NotImplementedError
+
+    def detection_rate(self, ranked: RankedCandidates, known: list[Baseline]) -> float:
+        """F-1102. 알려진 CVE 위치를 규칙이 다시 찾아내는 비율."""
         raise NotImplementedError
 
     def false_positive_rate(self, ranked: RankedCandidates) -> float:
-        """F-1103. 상위 후보 중 FP 비율 (수동 라벨 기준)."""
+        """F-1103. 라벨된 상위 후보 중 fp 비율."""
         raise NotImplementedError
 
-    def time_saved(self, manual_sec: float, tool_sec: float) -> float:
-        """F-1104. 수동 분석 시간 vs 도구 소요 시간."""
+    def time_saved(self, baseline: Baseline, tool_minutes: float) -> float:
+        """F-1104. 수동(Baseline.analysis_minutes) 대비 절감 비율."""
         raise NotImplementedError

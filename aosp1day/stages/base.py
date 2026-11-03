@@ -57,7 +57,11 @@ class Stage(abc.ABC):
                 f"(앞 단계를 먼저 실행하세요)"
             )
 
+    def save(self, ctx: PipelineContext, obj: Any) -> Path:
+        """산출물 저장 + meta(단계 이름, 입력 해시) 기록."""
+        return ctx.store.save(obj, stage=self.name, inputs=self.reads)
+
     @abc.abstractmethod
     def run(self, ctx: PipelineContext) -> StageResult:
-        """단계 본체. 서브클래스가 구현."""
+        """단계 본체. 서브클래스가 구현. 시작 시 ``check_inputs`` 를 호출한다."""
         raise NotImplementedError

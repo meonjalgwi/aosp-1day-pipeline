@@ -8,7 +8,11 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
+import types
+import typing
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Type, TypeVar, get_args, get_origin, get_type_hints
 
@@ -35,13 +39,15 @@ def to_dict(obj: Any) -> Any:
         return out
     if isinstance(obj, (list, tuple)):
         return [to_dict(v) for v in obj]
+    if isinstance(obj, dict):
+        return {k: to_dict(v) for k, v in obj.items()}
     return obj
 
 
 def from_dict(cls: Type[T], data: dict) -> T:
     """JSON dict 를 dataclass 트리로 복원.
 
-    skeleton 수준의 복원기. 중첩 dataclass 와 list[dataclass] 만 처리한다.
+    중첩 dataclass, list[...], dict[str, ...], Optional[...] 를 처리한다.
     """
     if not dataclasses.is_dataclass(cls):
         return data  # type: ignore[return-value]
@@ -57,13 +63,25 @@ def from_dict(cls: Type[T], data: dict) -> T:
 
 
 def _coerce(hint: Any, value: Any) -> Any:
+    if value is None:
+        return None
     origin = get_origin(hint)
+    if origin in (typing.Union, types.UnionType):          # Optional[X]
+        inner = [a for a in get_args(hint) if a is not type(None)]
+        return _coerce(inner[0], value) if len(inner) == 1 else value
     if dataclasses.is_dataclass(hint) and isinstance(value, dict):
         return from_dict(hint, value)
     if origin in (list, tuple) and isinstance(value, list):
         (inner,) = get_args(hint) or (Any,)
         return [_coerce(inner, v) for v in value]
+    if origin is dict and isinstance(value, dict):
+        _, inner = get_args(hint) or (Any, Any)
+        return {k: _coerce(inner, v) for k, v in value.items()}
     return value
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 class Store:
@@ -79,9 +97,19 @@ class Store:
     def exists(self, artifact: str) -> bool:
         return self.path(artifact).is_file()
 
-    def save(self, obj: Any) -> Path:
-        """dataclass 인스턴스를 ``obj.ARTIFACT`` 파일명으로 저장."""
+    def save(self, obj: Any, stage: str = "", inputs: tuple[str, ...] = ()) -> Path:
+        """dataclass 인스턴스를 ``obj.ARTIFACT`` 파일명으로 저장.
+
+        ``meta`` 필드가 있으면 생성 시각·단계·입력 산출물 해시를 채운다 (재현성).
+        """
         artifact = getattr(obj, "ARTIFACT")
+        meta = getattr(obj, "meta", None)
+        if meta is not None:
+            from . import __version__
+            meta.generated_at = datetime.now(timezone.utc).isoformat()
+            meta.tool_version = __version__
+            meta.stage = stage or meta.stage
+            meta.inputs = {a: sha256_file(self.path(a)) for a in inputs if self.exists(a)}
         self.dir.mkdir(parents=True, exist_ok=True)
         p = self.path(artifact)
         p.write_text(json.dumps(to_dict(obj), indent=2, ensure_ascii=False))
@@ -94,7 +122,7 @@ class Store:
         return from_dict(cls, raw)
 
     def save_text(self, name: str, content: str) -> Path:
-        self.dir.mkdir(parents=True, exist_ok=True)
         p = self.path(name)
+        p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
         return p

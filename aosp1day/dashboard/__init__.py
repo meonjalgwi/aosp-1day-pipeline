@@ -1,1 +1,1 @@
-"""M10. Web Dashboard — 최종 산출물 (Backend API + 비동기 작업)."""
+"""M10. Web Dashboard — Streamlit 앱 (최종 산출물)."""

@@ -15,3 +15,7 @@ aosp/
 
 # OS
 .DS_Store
+
+# 비밀값
+.env
+.env.*

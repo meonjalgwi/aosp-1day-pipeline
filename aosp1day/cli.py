@@ -8,10 +8,12 @@
     aosp1day pattern   CVE-2024-xxxx
     aosp1day scan      CVE-2024-xxxx
     aosp1day prioritize CVE-2024-xxxx --top-n 20
+    aosp1day harness   CVE-2024-xxxx
     aosp1day verify    CVE-2024-xxxx
     aosp1day report    CVE-2024-xxxx [--public]
+    aosp1day eval      _ --baselines baselines/          # 여러 CVE 평가 (cve_id 자리는 무시)
     aosp1day run       CVE-2024-xxxx [--start pattern]   # 전체 또는 특정 단계부터
-    aosp1day serve     [--host 0.0.0.0 --port 8000]      # M10 대시보드 Backend
+    aosp1day dashboard [--port 8501]                     # M10 Streamlit 대시보드
 """
 
 from __future__ import annotations
@@ -40,10 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--start", help="이 단계부터 재실행")
     run.add_argument("--source", help="CVE ID 대신 커밋 URL/해시")
 
-    # 대시보드 Backend
-    serve = sub.add_parser("serve", help="M10 Web Dashboard Backend 실행")
-    serve.add_argument("--host", default="127.0.0.1")
-    serve.add_argument("--port", type=int, default=8000)
+    # 대시보드 (Streamlit)
+    dash = sub.add_parser("dashboard", help="M10 Web Dashboard (Streamlit) 실행")
+    dash.add_argument("--port", type=int, default=8501)
 
     return parser
 
@@ -51,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
 def _add_stage_args(name: str, sp: argparse.ArgumentParser) -> None:
     if name == "collect":
         sp.add_argument("--source", help="커밋 URL/해시 (없으면 cve_id로 조회)")
+        sp.add_argument("--force", action="store_true", help="캐시 무시하고 다시 수집")
+    if name == "analyze":
+        sp.add_argument("--baseline", help="정답 데이터 baselines/<CVE>.json (F-204 비교)")
+    if name == "eval":
+        sp.add_argument("--baselines", default="baselines", help="정답 데이터 디렉터리")
     if name == "prioritize":
         sp.add_argument("--top-n", type=int, default=20)
     if name == "report":
@@ -58,7 +64,7 @@ def _add_stage_args(name: str, sp: argparse.ArgumentParser) -> None:
 
 
 def _params(args: argparse.Namespace) -> dict:
-    keys = ("source", "top_n", "public", "target", "groundtruth")
+    keys = ("source", "force", "baseline", "baselines", "top_n", "public", "target")
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
 
@@ -67,18 +73,22 @@ def main(argv: list[str] | None = None) -> int:
     config = Config.load(args.config)
     pipeline = Pipeline(config)
 
-    if args.command == "serve":
-        from .dashboard.api import serve
-        serve(host=args.host, port=args.port, config=config)
-        return 0
+    if args.command == "dashboard":
+        import subprocess
+        import sys
+        from pathlib import Path
+        app = Path(__file__).parent / "dashboard" / "app.py"
+        return subprocess.call([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", str(args.port)])
 
     if args.command == "run":
         run = pipeline.run_all(args.cve_id, start=args.start, params=_params(args))
+        for r in run.results:
+            print(f"  [{r.stage}] ok={r.ok} {r.message}")
         print(f"[run] {args.cve_id}: ok={run.ok} ({len(run.results)} stages)")
         return 0 if run.ok else 1
 
     result = pipeline.run_stage(args.command, args.cve_id, params=_params(args))
-    print(f"[{result.stage}] ok={result.ok} -> {[str(p) for p in result.artifacts]}")
+    print(f"[{result.stage}] ok={result.ok} {result.message} -> {[str(p) for p in result.artifacts]}")
     return 0 if result.ok else 1
 
 

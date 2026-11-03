@@ -6,12 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     # skeleton 단계에서는 표준 라이브러리만 사용. 구현 시 아래를 활성화한다.
-    # "tree-sitter",         # M2/M3 구문 분석
+    # "tree-sitter",         # M2/M3 구문 분석, M5/M6 규칙 엔진 (Tree-sitter Query + matcher)
     # "tree-sitter-java",
-    # "semgrep",             # M5/M6 규칙 엔진 (또는 tree-sitter 쿼리로 통일)
-    # "anthropic",           # M4 LLM
+    # <LLM provider SDK>,    # M4 — llm.LlmClient 구현체에서만 import
     # "pyyaml",              # config.yaml
-    # "fastapi", "uvicorn",  # M10 대시보드 Backend
+    # "streamlit",           # M10 대시보드
 ]
 
 [project.scripts]

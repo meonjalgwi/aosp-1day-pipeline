@@ -22,6 +22,6 @@
 
 ## 설계 뼈대 (코드)
 
-- 구현 위치: [`aosp1day/dashboard/`](../../aosp1day/dashboard/)
-- 클래스: `DashboardApp`
-- CLI: `aosp1day serve <CVE-ID>`
+- 구현 위치: [`aosp1day/dashboard/app.py`](../../aosp1day/dashboard/app.py) (Streamlit, 화면별 `page_*` 함수)
+- CLI: `aosp1day dashboard [--port 8501]`
+- Backend API·작업 큐 없음 — `output/<CVE-ID>/*.json` 만 읽음
