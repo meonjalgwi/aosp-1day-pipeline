@@ -1,6 +1,7 @@
 # 기능명세서 (Feature Specification)
 
 > 산출물 툴: **AOSP Framework 1-Day 패치 기반 분석·유사 취약점 탐지 도구**
+> 용어가 낯설면 [glossary.md](glossary.md) 참고
 > 상태: 초안 (v0.2, 2026-11-02 — 산출물 형태를 웹 대시보드로 확정) — 팀 리뷰 후 확정
 
 ## 1. 개요

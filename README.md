@@ -74,4 +74,5 @@ modules/
 docs/
   roadmap.md        # 8주 계획
   feature-spec.md   # 기능명세서
+  glossary.md       # 용어 정리 (M·P·F 번호, 기술 용어)
 ```
