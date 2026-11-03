@@ -6,8 +6,8 @@
 
 ## 입력 / 출력
 
-- 입력: 정답 데이터 + 각 단계 결과
-- 출력: `eval.json`, 평가표
+- 입력: `baselines/<CVE-ID>.json`(수동 정답) + 각 단계 결과
+- 출력: `output/eval.json`
 
 ## 진행 상태
 

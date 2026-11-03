@@ -29,11 +29,11 @@ CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패
 - **M2 Patch Analyzer** — Tree-sitter로 변경 클래스·메서드·조건문·권한 검사·예외 처리 추출
 - **M3 Binder Path Analyzer** — AIDL ↔ 구현 클래스 연결, 외부 진입점부터 변경 함수까지 호출 경로
 - **M4 Root Cause Analyzer (AI)** — 패치 증거 기반 근본 원인·보안 불변식·발생 조건 생성
-- **M5 Pattern / Rule Generator** — source·guard·sink 패턴을 Semgrep/Tree-sitter 규칙으로 변환
+- **M5 Pattern / Rule Generator** — source·guard·sink 패턴을 Tree-sitter Query 규칙으로 변환
 - **M6 Scanner / M7 Prioritizer** — `frameworks/base` 스캔 후 후보 점수화, 상위 10~20건 출력
 - **M8 Verifier** — Emulator 초기화 → APK 설치 → 테스트 → 로그 수집, 패치 전후 차등 판정
 - **M9 Reporter** — 근거 로그·diff를 포함한 HTML/Markdown 보고서
-- **M10 Web Dashboard (최종 산출물)** — CVE 입력·진행 상태·분석 결과·후보·검증·보고서를 보는 웹 대시보드
+- **M10 Web Dashboard (최종 산출물)** — 분석 결과·후보·검증·보고서를 보는 Streamlit 대시보드 (미리 생성된 JSON만 읽음)
 - **M11 Evaluation** — 정확도·탐지율·오탐률·시간 절감 평가
 
 기능 상세는 [docs/feature-spec.md](docs/feature-spec.md) 참고.
