@@ -16,3 +16,7 @@ device:
   patched_image: ""
   snapshot: clean
   boot_timeout_sec: 300
+  test_apks:            # 미리 빌드한 공용 instrumentation APK 변형
+    no_perms: apks/harness-no-perms.apk
+    with_perms: apks/harness-with-perms.apk
+  relax_hidden_api: false   # 켜면 패치 전/후 빌드에 동일 적용

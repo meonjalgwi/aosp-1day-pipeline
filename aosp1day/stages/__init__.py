@@ -19,18 +19,20 @@ from .m08_verifier import Verifier
 from .m09_reporter import Reporter
 from .m11_evaluation import Evaluator
 
-# CVE 한 건에 대해 순서대로 도는 핵심 파이프라인 (M1 -> M9)
+# CVE 한 건에 대해 순서대로 도는 핵심 파이프라인.
+# 기준선 검증(Harness·Verifier)을 RootCause 바로 뒤에 둬서, 전체 스캔(M5~M7) 결과와 무관하게 먼저 돈다.
+# run_all() 은 앞 단계가 실패해도 reads 가 충족된 단계는 계속 실행한다.
 PIPELINE: tuple[type[Stage], ...] = (
-    Collector,
-    PatchAnalyzer,
-    BinderPathAnalyzer,
-    RootCauseAnalyzer,
-    PatternGenerator,
-    Scanner,
-    Prioritizer,
-    Harness,
-    Verifier,
-    Reporter,
+    Collector,           # M1
+    PatchAnalyzer,       # M2
+    BinderPathAnalyzer,  # M3
+    RootCauseAnalyzer,   # M4
+    Harness,             # M8 (P0: 수동 기준선 TestCase)
+    Verifier,            # M8
+    PatternGenerator,    # M5
+    Scanner,             # M6
+    Prioritizer,         # M7
+    Reporter,            # M9
 )
 
 # 선형 파이프라인에 속하지 않는 단계

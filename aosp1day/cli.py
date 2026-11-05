@@ -55,6 +55,8 @@ def _add_stage_args(name: str, sp: argparse.ArgumentParser) -> None:
         sp.add_argument("--force", action="store_true", help="캐시 무시하고 다시 수집")
     if name == "analyze":
         sp.add_argument("--baseline", help="정답 데이터 baselines/<CVE>.json (F-204 비교)")
+    if name == "harness":
+        sp.add_argument("--tests", help="수동 TestCase 파일 (기본: baselines/<CVE>.tests.json)")
     if name == "eval":
         sp.add_argument("--baselines", default="baselines", help="정답 데이터 디렉터리")
     if name == "prioritize":
@@ -64,7 +66,7 @@ def _add_stage_args(name: str, sp: argparse.ArgumentParser) -> None:
 
 
 def _params(args: argparse.Namespace) -> dict:
-    keys = ("source", "force", "baseline", "baselines", "top_n", "public", "target")
+    keys = ("source", "force", "baseline", "baselines", "tests", "top_n", "public", "target")
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
 

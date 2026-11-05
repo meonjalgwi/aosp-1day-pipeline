@@ -53,7 +53,10 @@ class PatchAnalyzer(Stage):
         raise NotImplementedError
 
     def split_hunks(self, diff_path: Path) -> list[Hunk]:
-        """diff 를 hunk 단위로 나누고 before/after CodeRef(줄 범위·snippet) 채움."""
+        """diff 를 hunk 단위로 나누고 before/after CodeRef(줄 범위·snippet) 채움.
+
+        before.revision = commit.parent, after.revision = commit.hash, 둘 다 patch_commit = commit.hash.
+        """
         raise NotImplementedError
 
     def extract_changed_units(self, hunk: Hunk, before_src: Path, after_src: Path) -> PatchChange:

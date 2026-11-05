@@ -32,6 +32,10 @@ class DeviceConfig:
     patched_image: str = ""           # 패치 후
     snapshot: str = "clean"           # emulator 일 때만
     boot_timeout_sec: int = 300
+    # 미리 빌드한 공용 instrumentation APK 변형 (TestCase.caller.apk_variant -> APK 경로)
+    test_apks: dict[str, str] = field(default_factory=dict)
+    # hidden API 정책 완화 여부 — 켠다면 패치 전/후 빌드에 똑같이 적용한다
+    relax_hidden_api: bool = False
 
 
 @dataclass

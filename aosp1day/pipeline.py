@@ -1,9 +1,11 @@
 """오케스트레이터.
 
-CVE 한 건에 대해 M1 -> M9 단계를 순서대로 실행한다.
+CVE 한 건에 대해 PIPELINE 단계를 순서대로 실행한다.
 - 각 단계는 앞 단계 JSON 산출물만 있으면 독립 실행 가능 (feature-spec 2장)
 - ``start`` 로 특정 단계부터 재실행
-- 단계에서 예외가 나면 ok=False 결과로 기록하고 중단 (실패 단계·에러를 남김)
+- 단계가 실패해도 중단하지 않는다. 다음 단계의 입력(reads)이 없으면 그 단계는 "건너뜀"으로 기록.
+  → 예: Scanner 가 실패해도 기준선 검증(Harness·Verifier)은 돈다.
+- 단계에서 예외가 나면 ok=False 결과로 기록 (실패 단계·에러를 logs/ 에 남김)
 """
 
 from __future__ import annotations
@@ -47,17 +49,19 @@ class Pipeline:
             return StageResult(stage_name, ok=False, message=f"{type(e).__name__}: {e}")
 
     def run_all(self, cve_id: str, start: str | None = None, params: dict | None = None) -> PipelineRun:
-        """M1 -> M9 전체 실행. ``start`` 지정 시 그 단계부터. 실패하면 그 단계에서 중단."""
+        """PIPELINE 전체 실행. ``start`` 지정 시 그 단계부터."""
         if start is not None and start not in REGISTRY:
             raise ValueError(f"알 수 없는 단계: {start}")
         run = PipelineRun(cve_id=cve_id)
+        store = Store(self.config.output_root, cve_id)
         started = start is None
         for stage_cls in PIPELINE:
             started = started or stage_cls.name == start
             if not started:
                 continue
-            result = self.run_stage(stage_cls.name, cve_id, params)
-            run.results.append(result)
-            if not result.ok:
-                break
+            missing = [a for a in stage_cls.reads if not store.exists(a)]
+            if missing:
+                run.results.append(StageResult(stage_cls.name, ok=False, message=f"건너뜀: 선행 산출물 없음 {missing}"))
+                continue
+            run.results.append(self.run_stage(stage_cls.name, cve_id, params))
         return run

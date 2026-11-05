@@ -6,7 +6,9 @@ PR #20의 모듈 구성(M1~M11)과 설계 뼈대(`aosp1day/`)를 Mermaid로 나�
 ## 1. 파이프라인 단계와 산출물 (M1 → M9)
 
 각 단계는 `output/<CVE-ID>/*.json` 으로만 연결되고, 앞 단계 JSON만 있으면 독립 실행된다.
-모든 산출물은 `meta`(스키마 버전·생성 시각·입력 해시)를 가지고, 코드 위치는 전부 `CodeRef`(commit·file·side·줄 범위·snippet)로 표현한다.
+모든 산출물은 `meta`(스키마 버전·생성 시각·입력 해시)를 가지고, 코드 위치는 전부 `CodeRef`(revision·file·side·줄 범위·snippet)로 표현한다. `revision`은 그 코드가 실제로 있는 커밋(before=parent, after=패치 커밋)이다.
+
+실행 순서는 `collect → analyze → binder-path → root-cause → harness → verify → pattern → scan → prioritize → report`. 기준선 검증(Harness·Verifier)을 전체 스캔보다 먼저 두고, `run`은 한 단계가 실패해도 입력이 준비된 단계는 계속 실행한다.
 
 ```mermaid
 flowchart TD
@@ -27,6 +29,8 @@ flowchart TD
     end
 
     SRC[("patches/*.diff<br/>src/&lt;hash&gt;/before·after")]:::io
+    MAN[("baselines/&lt;CVE&gt;.tests.json<br/>수동 기준선 TestCase (P0)")]:::io
+    APK[("공용 instrumentation APK<br/>(권한 변형별)")]:::io
 
     IN --> M1
     M1 -- cve.json --> M2
@@ -39,9 +43,11 @@ flowchart TD
     M4 -- "root_cause.json<br/>(status=inferred, 근거 CodeRef)" --> M5
     M5 -- "pattern.json (PatternSet)<br/>+ rules/*.scm" --> M6
     M6 -- candidates.json --> M7
-    M4 -- "hypotheses" --> M8H
-    M3 -- "진입점" --> M8H
-    M8H -- "test_cases.json + APK" --> M8
+    MAN -- "P0" --> M8H
+    M4 -. "hypotheses (P1 자동 생성)" .-> M8H
+    M3 -. "진입점 (P1)" .-> M8H
+    M8H -- "test_cases.json<br/>+ tests/*.json 파라미터" --> M8
+    APK --> M8
     M7 -- ranked_candidates.json --> M9
     M8 -- verification.json --> M9
     M9 --> OUT([report.json / .md / .html<br/>+ _public 마스킹본]):::io

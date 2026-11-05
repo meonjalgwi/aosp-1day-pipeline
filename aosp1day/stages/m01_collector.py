@@ -46,8 +46,9 @@ class Collector(Stage):
 
         저장 위치:
           patches/<hash>.diff
-          src/<hash>/before/<frameworks/base 기준 경로>
-          src/<hash>/after/<frameworks/base 기준 경로>
+          src/<hash>/before/<frameworks/base 기준 경로>   (parent 리비전)
+          src/<hash>/after/<frameworks/base 기준 경로>    (패치 커밋 리비전)
+        경로는 output/<CVE-ID>/ 기준 상대 경로로 기록한다.
         """
         raise NotImplementedError
 
@@ -56,5 +57,22 @@ class Collector(Stage):
         raise NotImplementedError
 
     def is_cached(self, ctx: PipelineContext) -> bool:
-        """F-106. cve.json 과 diff 가 이미 있으면 재다운로드하지 않음 (params.force 로 무시)."""
-        return bool(ctx.store.exists(CveRecord.ARTIFACT) and not ctx.params.get("force"))
+        """F-106. cve.json 과, 그 안의 모든 커밋의 diff·패치 전/후 소스가 실제로 있을 때만 캐시 사용.
+
+        중간에 끊긴 수집(cve.json 만 있고 diff/소스가 없는 경우)은 캐시로 보지 않는다. params.force 로 무시.
+        """
+        if ctx.params.get("force") or not ctx.store.exists(CveRecord.ARTIFACT):
+            return False
+        record = ctx.store.load(CveRecord)
+        if not record.patch_commits:
+            return False
+        for c in record.patch_commits:
+            paths = [c.diff_path, c.before_dir, c.after_dir]
+            if not all(paths):
+                return False
+            diff, before, after = (ctx.store.dir / p for p in paths)
+            if not (diff.is_file() and before.is_dir() and after.is_dir()):
+                return False
+            if any(not (after / f).exists() and not (before / f).exists() for f in c.changed_files):
+                return False   # 변경 파일이 전/후 어디에도 없음 (추가·삭제 파일은 한쪽에만 있음)
+        return True

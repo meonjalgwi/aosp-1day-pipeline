@@ -5,12 +5,20 @@ description = "AOSP Framework/system_server 1-Day 패치 기반 재현·원인 �
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    # skeleton 단계에서는 표준 라이브러리만 사용. 구현 시 아래를 활성화한다.
-    # "tree-sitter",         # M2/M3 구문 분석, M5/M6 규칙 엔진 (Tree-sitter Query + matcher)
-    # "tree-sitter-java",
-    # <LLM provider SDK>,    # M4 — llm.LlmClient 구현체에서만 import
-    # "pyyaml",              # config.yaml
-    # "streamlit",           # M10 대시보드
+    "PyYAML>=6.0",           # config.yaml
+    "streamlit>=1.40",       # M10 대시보드
+]
+
+[project.optional-dependencies]
+# 특정 단계에서만 필요한 패키지: pip install -e ".[analysis]"
+analysis = [
+    "tree-sitter>=0.23",     # M2/M3 구문 분석, M5/M6 규칙 엔진 (Tree-sitter Query + matcher)
+    "tree-sitter-java>=0.23",
+]
+# M4 LLM provider SDK 는 llm.LlmClient 구현체를 추가할 때 여기에 넣는다 (예: llm-anthropic = [...])
+llm = []
+dev = [
+    "pytest>=8",
 ]
 
 [project.scripts]

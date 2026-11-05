@@ -69,5 +69,5 @@ class Reporter(Stage):
         raise NotImplementedError
 
     def mask_for_public(self, bundle: dict) -> dict:
-        """F-904. public=False 후보의 코드·위치, TestCase.call_args, 로그 원문 제거."""
+        """F-904. public=False 후보의 코드·위치, TestCase.calls(재현 입력)·params 파일, 로그 원문 제거."""
         raise NotImplementedError

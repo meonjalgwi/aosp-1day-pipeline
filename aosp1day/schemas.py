@@ -6,6 +6,7 @@ feature-spec.md 4장 "공통 데이터 (JSON 스키마)"를 타입으로 옮긴 
 설계 원칙
 - 다음 단계가 실제로 쓸 정보를 담는다 (줄 번호만이 아니라 코드·커밋·전/후 구분까지).
 - 코드 위치는 전부 ``CodeRef`` 하나로 표현한다 (M2 변경, M3 경로 노드, M4 근거, M6 후보, M8 판정 근거).
+  ``CodeRef.revision`` 은 그 코드가 실제로 존재하는 리비전이다 (before=parent, after=패치 커밋).
 - 모든 산출물은 ``meta`` (스키마 버전·생성 시각·입력 해시)를 가진다 → 재현성.
 - LLM이 만든 결과는 ``status = "inferred"`` 로 저장하고, 사람이 확인해야 ``confirmed`` 가 된다.
 """
@@ -13,9 +14,9 @@ feature-spec.md 4장 "공통 데이터 (JSON 스키마)"를 타입으로 옮긴 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
-SCHEMA_VERSION = "0.2"
+SCHEMA_VERSION = "0.3"
 
 
 # --- 공통 ---------------------------------------------------------------------
@@ -35,13 +36,15 @@ class ArtifactMeta:
 class CodeRef:
     """코드 위치 + 내용 (provenance). 모든 단계가 같은 구조로 코드를 가리킨다.
 
-    side:
-      - "before": 패치 전(취약) 소스 기준 줄 번호
-      - "after" : 패치 후 소스 기준 줄 번호
-      - "aosp"  : 스캔 대상 AOSP 트리(M6) 기준 줄 번호
+    ``revision`` 은 **이 코드가 실제로 존재하는 커밋**이다. 이 값으로 원본 파일·줄을 다시 조회한다.
+      - side="before": 패치 커밋의 parent (취약 버전)
+      - side="after" : 패치 커밋
+      - side="aosp"  : M6이 스캔한 frameworks/base HEAD
+    어느 패치에서 나온 코드인지는 ``patch_commit`` 으로 따로 남긴다.
     """
 
-    commit: str = ""          # 패치 커밋 해시 (side=aosp이면 스캔한 AOSP 리비전)
+    revision: str = ""        # 이 코드가 실제로 존재하는 커밋 (위 규칙)
+    patch_commit: str = ""    # 관련 패치 커밋 (side=aosp 이면 비움)
     file: str = ""            # frameworks/base 기준 상대 경로
     side: str = ""            # before | after | aosp
     start_line: int = 0
@@ -118,8 +121,8 @@ class Hunk:
 
 @dataclass
 class PatchChange:
-    id: str = ""                    # 예: "chg-1" — M3/M4가 참조
-    commit: str = ""
+    id: str = ""                    # 예: "chg-1" — M3/M4/M8 이 참조
+    patch_commit: str = ""          # 이 변경이 들어 있는 패치 커밋 (hunk 의 before.revision 은 그 parent)
     file: str = ""
     cls: str = ""                   # JSON 키는 "class" (storage에서 매핑)
     method: str = ""
@@ -184,6 +187,7 @@ class Evidence(CodeRef):
 
 @dataclass
 class Claim:
+    id: str = ""                    # 예: "rc-1", "hyp-1" — 리포트·대시보드·TestCase 가 참조
     text: str = ""
     evidence: list[Evidence] = field(default_factory=list)   # 비어 있으면 "근거 없음"으로 표시 (F-403)
 
@@ -302,21 +306,94 @@ class RankedCandidates:
 
 # --- M8. Verifier (Harness 포함) -> test_cases.json / verification.json -------
 
+# 실행 결과 / 기대 결과 공용 값 목록. RunResult.outcome 과 ExpectedResult.outcome 이 같은 값을 쓴다.
+OUTCOMES = (
+    "ok",                   # 정상 반환 (예외 없음)
+    "returned_data",        # 정상 반환 + 반환값 검사 대상
+    "security_exception",   # SecurityException 등 권한 거부
+    "exception",            # 그 밖의 예외
+    "crash",                # 테스트 앱 또는 system_server 크래시
+    "timeout",
+)
+Outcome = str  # OUTCOMES 중 하나
+
+
+@dataclass
+class ValueSpec:
+    """테스트 인자 하나. 공용 instrumentation APK 가 이 구조를 읽어 실제 Java 객체로 조립한다.
+
+    P0 지원 type: null | bool | int | long | float | string | array | bundle | intent | ref
+    (임의 Parcelable 은 P1)
+      - array : items 에 원소 ValueSpec
+      - bundle: entries 에 key -> ValueSpec
+      - intent: entries 의 action/package/component/data/extras(bundle) 키 사용
+      - ref   : 앞선 호출 결과 참조 (value = "<call_id>")
+    """
+
+    type: str = "null"
+    value: Any = None                                         # 스칼라 값 (null/bool/int/long/float/string/ref)
+    items: list["ValueSpec"] = field(default_factory=list)    # array
+    entries: dict[str, "ValueSpec"] = field(default_factory=dict)  # bundle / intent
+    java_type: str = ""                                       # 오버로드 구분용 (예: "int[]", "android.os.Bundle")
+
+
+@dataclass
+class CallStep:
+    """호출 하나. TestCase.calls 순서대로 실행한다."""
+
+    id: str = ""                    # 예: "call-1" (ValueSpec ref 로 참조)
+    via: str = "binder"             # binder | intent (P0) / content_provider 등 (P1)
+    service: str = ""               # ServiceManager 이름 (예: "package")
+    interface: str = ""             # AIDL 인터페이스 (예: android.content.pm.IPackageManager)
+    method: str = ""
+    args: list[ValueSpec] = field(default_factory=list)       # 인자 순서대로
+
+
+@dataclass
+class CallerSpec:
+    """호출 앱의 신원·권한. 패치 전/후 빌드에서 같은 조건을 만들어야 차등 판정이 의미가 있다."""
+
+    kind: str = "untrusted_app"     # untrusted_app | privileged_app | shell
+    package: str = ""               # 테스트 APK 패키지
+    apk_variant: str = "no_perms"   # 공용 APK 변형 (config.device.test_apks 의 키, 예: no_perms | with_perms)
+    granted_permissions: list[str] = field(default_factory=list)   # 설치 후 pm grant (매니페스트에 선언된 것만 가능)
+    user_id: int = 0
+    target_sdk: Optional[int] = None
+
+
+@dataclass
+class ExpectedResult:
+    """기대 결과. Verifier 가 RunResult 와 필드 단위로 비교해 자동 판정한다."""
+
+    outcome: Outcome = ""
+    exception_type: str = ""        # 예: java.lang.SecurityException
+    return_value: Optional[ValueSpec] = None
+    log_regex: str = ""             # 예: "Permission Denial"
+
+
 @dataclass
 class TestCase:
-    """F-802 (Harness). 가설 하나를 확인하는 테스트."""
+    """F-807(P0 기준선, 사람 작성) / F-802(P1 자동 생성). 가설 하나를 확인하는 테스트."""
 
     id: str = ""
-    hypothesis: str = ""            # RootCause.hypotheses[].text
-    target_service: str = ""        # 예: package
-    target_interface: str = ""      # AIDL 인터페이스
-    target_method: str = ""
-    call_args: dict[str, str] = field(default_factory=dict)   # 인자 이름 -> 값/생성 방법
-    caller: str = "untrusted_app"   # 호출자 권한 수준
-    expected_vulnerable: str = ""   # 예: "returns data of other user"
-    expected_patched: str = ""      # 예: "SecurityException"
-    template: str = ""              # 사용한 APK/instrumentation 템플릿 이름
-    apk_path: str = ""              # 빌드된 테스트 APK
+    source: str = "manual"          # manual (baselines/<CVE>.tests.json) | generated (F-802)
+    hypothesis_id: str = ""         # RootCause.hypotheses[].id
+    change_id: str = ""             # PatchChange.id (= CallPathEntry.target_change)
+    entrypoint: str = ""            # 사용한 Binder 진입점
+    caller: CallerSpec = field(default_factory=CallerSpec)
+    setup: list[str] = field(default_factory=list)      # reset 후·실행 전 adb shell 명령 (예: "pm create-user test")
+    calls: list[CallStep] = field(default_factory=list)
+    teardown: list[str] = field(default_factory=list)   # 실행 후 정리 adb shell 명령
+    expected_vulnerable: ExpectedResult = field(default_factory=ExpectedResult)
+    expected_patched: ExpectedResult = field(default_factory=ExpectedResult)
+    template: str = ""              # 공용 APK 안의 템플릿 이름 (예: BinderCallTest)
+    params_path: str = ""           # 기기에 push 할 파라미터 JSON (output/<CVE>/tests/<id>.json)
+
+
+@dataclass
+class SkippedHypothesis:
+    hypothesis_id: str = ""
+    reason: str = ""                # 예: "no_reachable_entrypoint", "unresolved_change", "unsupported_arg_type"
 
 
 @dataclass
@@ -324,6 +401,7 @@ class TestCases:
     meta: ArtifactMeta = field(default_factory=ArtifactMeta)
     cve_id: str = ""
     tests: list[TestCase] = field(default_factory=list)
+    skipped: list[SkippedHypothesis] = field(default_factory=list)   # 테스트를 만들지 못한 가설
 
     ARTIFACT = "test_cases.json"
 
@@ -339,7 +417,9 @@ class BuildInfo:
 @dataclass
 class RunResult:
     build: BuildInfo = field(default_factory=BuildInfo)
-    outcome: str = ""               # 예: SecurityException | crash | returned_data | ok
+    outcome: Outcome = ""           # OUTCOMES 중 하나
+    exception_type: str = ""
+    return_value: Any = None
     logcat_path: str = ""
     log_excerpt: list[str] = field(default_factory=list)   # 판정 근거 줄
     exit_code: Optional[int] = None
@@ -360,7 +440,7 @@ class Verification:
 
     meta: ArtifactMeta = field(default_factory=ArtifactMeta)
     cve_id: str = ""
-    target: str = ""                # CVE ID 또는 Candidate.id
+    target: str = ""                # P0: CVE ID 만. (Candidate.id 검증은 P1)
     results: list[TestVerdict] = field(default_factory=list)
     verdict: str = ""               # 전체 판정: 하나라도 reproduced 면 reproduced
 
@@ -381,8 +461,8 @@ class Baseline:
     trigger_conditions: list[str] = field(default_factory=list)
     entrypoint: str = ""
     repro_steps: list[str] = field(default_factory=list)
-    expected_vulnerable: str = ""
-    expected_patched: str = ""
+    expected_vulnerable: ExpectedResult = field(default_factory=ExpectedResult)
+    expected_patched: ExpectedResult = field(default_factory=ExpectedResult)
     analysis_minutes: Optional[float] = None   # F-1104 시간 절감 비교용
 
 

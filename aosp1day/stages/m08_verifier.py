@@ -3,13 +3,16 @@
 입력: test_cases.json (Harness 결과)
 출력: verification.json + logs/<test_id>-<side>.logcat
 
-환경 초기화 -> APK 설치 -> 테스트 -> logcat 수집을 취약/패치 빌드에서 각각 돌리고 차등 판정한다.
+빌드(취약/패치)마다: 환경 초기화 -> 공용 테스트 APK 설치(caller.apk_variant) -> 권한 grant ->
+setup 명령 -> 파라미터 JSON push -> am instrument -> logcat 수집 -> teardown.
+expected_* (ExpectedResult) 와 RunResult 를 필드 단위로 비교해 자동 판정한다.
+P0 target 은 CVE ID 만 (후보 검증은 P1).
 기기는 Cuttlefish 1차, 2주차 성공 기준 미달 시 Emulator (최종적으로 하나만 지원).
 """
 
 from __future__ import annotations
 
-from ..schemas import BuildInfo, RunResult, TestCase, TestCases, TestVerdict, Verification
+from ..schemas import BuildInfo, ExpectedResult, RunResult, TestCase, TestCases, TestVerdict, Verification
 from .base import PipelineContext, Stage, StageResult
 
 
@@ -43,12 +46,32 @@ class Verifier(Stage):
         raise NotImplementedError
 
     def run_on_build(self, test: TestCase, build: BuildInfo, ctx: PipelineContext) -> RunResult:
-        """F-803. 초기화 -> APK 설치 -> 테스트 실행 -> logcat 저장, 판정 근거 줄 추출."""
+        """F-803. reset -> install(caller.apk_variant) -> grant -> setup -> push params
+        -> am instrument -> logcat 저장·근거 줄 추출 -> teardown."""
         raise NotImplementedError
 
-    def diff_verdict(self, test: TestCase, vuln: RunResult, patched: RunResult) -> TestVerdict:
-        """F-804. test.expected_* 와 실제 outcome 비교 → reproduced / not_reproduced / error."""
-        raise NotImplementedError
+    def matches(self, expected: ExpectedResult, actual: RunResult, logcat: str = "") -> bool:
+        """기대 결과 비교: outcome 일치 + (지정된 경우) exception_type·return_value·log_regex 일치."""
+        import re
+        if expected.outcome != actual.outcome:
+            return False
+        if expected.exception_type and expected.exception_type != actual.exception_type:
+            return False
+        if expected.log_regex and not re.search(expected.log_regex, logcat):
+            return False
+        # return_value(ValueSpec) 비교는 구현 시 추가
+        return True
+
+    def diff_verdict(self, test: TestCase, vuln: RunResult, patched: RunResult,
+                     vuln_log: str = "", patched_log: str = "") -> TestVerdict:
+        """F-804. 취약 빌드가 expected_vulnerable, 패치 빌드가 expected_patched 와 모두 맞으면 reproduced."""
+        if "timeout" in (vuln.outcome, patched.outcome) or not vuln.outcome or not patched.outcome:
+            verdict = "error"
+        elif self.matches(test.expected_vulnerable, vuln, vuln_log) and self.matches(test.expected_patched, patched, patched_log):
+            verdict = "reproduced"
+        else:
+            verdict = "not_reproduced"
+        return TestVerdict(test_id=test.id, vulnerable=vuln, patched=patched, verdict=verdict)
 
     def classify_failure(self, verdict: TestVerdict) -> str:
         """F-805. 실패 원인 분류 (env/build/hypothesis/test)."""
