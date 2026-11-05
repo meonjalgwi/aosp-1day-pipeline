@@ -2,7 +2,7 @@
 
 > 산출물 툴: **AOSP Framework 1-Day 패치 기반 분석·유사 취약점 탐지 도구**
 > 용어가 낯설면 [glossary.md](glossary.md) 참고
-> 상태: v0.3 (2026-11-03) — PR #20 리뷰 반영: P0 축소, Tree-sitter 통일, Cuttlefish 1차, LLM 추상화·키 관리, Streamlit 단독, 배포 원칙. PR #30 리뷰 반영: 데이터 계약에 출처(CodeRef) 추가. v0.3.1 (2026-11-05) — PR #30 2차 리뷰: Harness P0 범위, TestCase 구조화, CodeRef.revision, 공용 테스트 APK
+> 상태: v0.3 (2026-11-03) — PR #20 리뷰 반영: P0 축소, Tree-sitter 통일, Cuttlefish 1차, LLM 추상화·키 관리, Streamlit 단독, 배포 원칙. PR #30 리뷰 반영: 데이터 계약에 출처(CodeRef) 추가. v0.3.1 (2026-11-05) — PR #30 2차 리뷰: Harness P0 범위, TestCase 구조화, CodeRef.revision, 공용 테스트 APK / PR #20 2차 리뷰: 사전 빌드 이미지, 정적 분석 범위, 동적 검증 준비 순서
 
 ## 1. 개요
 
@@ -34,10 +34,11 @@ CVE/패치 입력
 
 | 구분 | 내용 |
 | --- | --- |
-| 대상 | `frameworks/base`의 Framework / System Service **Java** 코드 |
+| 대상 (정적 분석) | `platform/frameworks/base`의 Java 기반 Framework / System Service 코드 중<br>· `services/*/java/com/android/server/` (`services/core` 외 `devicepolicy`·`accessibility` 등 포함)<br>· Binder/AIDL 진입점과 연결된 `core/java/android/` (`.aidl`, Stub·Manager)<br>· UID–packageName 및 Binder caller identity 관련 코드 |
+| 대상 (동적 검증) | 기준선 CVE 1건만 패치 전·후 비교 (P0) |
 | 취약점 유형 | 권한 검사 누락, UID–packageName 불일치, Cross-user 접근, 입력 검증 누락 등 |
 | 제외 | Native(C/C++), 커널, 벤더 코드, 실제 공격용 exploit 작성 |
-| 입력 CVE | 후보 6~8개 + 기준선 CVE 1개 |
+| 입력 CVE | 후보 6~8개 + 기준선 CVE 1개. 기준선 CVE는 **패치 전·후 이미지(또는 교체 가능한 모듈)를 실제로 구할 수 있는 것**을 고른다 (2026년부터 AOSP 소스 공개가 Q2·Q4 연 2회라, 특정 패치 직전·직후 빌드가 없을 수 있음) |
 
 ## 2. 전체 구조
 
@@ -340,6 +341,10 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 | P0 범위 | 3장 앞의 10개로 축소 | PR #20 리뷰 |
 | 규칙 엔진 | **Tree-sitter로 통일** — M2 Java AST 추출, M3 AIDL/Stub/Service 분석, M5·M6 Tree-sitter Query + Python matcher | PR #20 리뷰 |
 | 검증 기기 | **Cuttlefish 1차**. 2주차 종료(11/8) 전 `launch_cvd` 부팅 · `adb devices` 연결 · 테스트 APK 설치 · logcat 수집이 안 되면 **Emulator로 전환**. 최종 구현은 하나만 지원 | PR #20 리뷰 |
+| 2주차 환경 | AOSP 직접 빌드 없이 **공식 CI 사전 빌드 이미지**(`aosp_cf_x86_64_phone` userdebug img + 같은 빌드의 `cvd-host_package`)로 위 4개 항목만 확인 | PR #20 2차 리뷰 |
+| 이미지 분리 | 환경 확인용은 최신 공식 CI 이미지, 동적 재현용은 기준선 CVE에 맞춘 버전으로 별도 고정 (`device.env_image` / `device.vulnerable_image`·`patched_image`). 정확한 이미지·revision은 확보 가능성 확인 후 확정 | PR #20 2차 리뷰 |
+| 동적 검증 준비 | ① 패치 전·후 사전 빌드 이미지 → ② 호환되는 Framework/System Service 모듈(`services.jar` 등) 단위 빌드·교체 → ③ 둘 다 안 되면 재현 가능한 다른 기준선 CVE로 변경. **AOSP 전체 빌드는 P0 제외**, 모듈 단위로 해결 안 될 때만 별도 검토 | PR #20 2차 리뷰 |
+| 정적 분석 범위 | 1장 범위표 "대상 (정적 분석)" 경로만 스캔 (`scan_paths`) | PR #20 2차 리뷰 |
 | LLM | `LlmClient.generate_structured(prompt, schema)` 인터페이스, 키는 환경변수, 결과는 `inferred` | PR #20 리뷰 |
 | 대시보드 | **Streamlit 단독**, 미리 생성된 JSON만 읽음 | PR #20 리뷰 |
 | 배포 | 5장 "공개·배포" | PR #20 리뷰 |
@@ -352,8 +357,10 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 ## 7. 남은 논의
 
 - [ ] 담당자 배정 (구현 시작 전 별도 확정)
-- [ ] Linux + KVM 머신 확보 (누가, 어디서)
-- [ ] 패치 전·후 이미지 준비 방식: CI 빌드 이미지 다운로드 vs `framework.jar`/`services.jar` 교체 vs 직접 빌드
+- [ ] Cuttlefish 실행 PC·담당: 후보 현아(WSL2에서 `/dev/kvm`·가상화 확장 확인, 그룹 권한 설정 필요). M8 실행·판정과 같은 사람·PC가 맡는 게 좋아서, 다른 팀원 PC 점검 결과 보고 결정
+  - WSL2는 Cuttlefish 공식 지원 환경이 아니므로 11/8 성공 기준으로 판단
+  - 설치 시 `sudo usermod -aG kvm,cvdnetwork,render $USER` 후 `wsl --shutdown`
+- [ ] 기준선 CVE의 패치 전·후 이미지(또는 모듈) 확보 가능 여부 확인 → 재현용 이미지·revision 확정
 - [ ] LLM provider·model 선정
 
 ### 테스트 APK (F-809, PR #30 서진 리뷰 5번)

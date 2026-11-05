@@ -58,6 +58,8 @@
 | **Cross-user** | 다른 사용자(멀티유저/업무 프로필)의 데이터에 접근하는 취약 패턴 |
 | **Harness** | 가설을 실제로 확인하는 테스트 APK / instrumentation test |
 | **Cuttlefish** | AOSP 공식 가상 기기. 직접 빌드한 AOSP 검증에 적합, Linux+KVM 필요 |
+| **CI 사전 빌드 이미지** | ci.android.com에 올라오는 공식 빌드 결과물. Cuttlefish는 이미지(`*-img-*.zip`)와 같은 빌드의 `cvd-host_package.tar.gz`를 받아 바로 실행 |
+| **launch_cvd** | Cuttlefish 가상 기기를 띄우는 명령 |
 | **Emulator** | Android Studio 에뮬레이터. 설치가 쉽고 snapshot 저장·복원 가능 |
 | **logcat** | 안드로이드 로그. 예외·크래시 확인에 사용 |
 | **Streamlit** | 파이썬 코드만으로 웹 화면을 만드는 도구 |
