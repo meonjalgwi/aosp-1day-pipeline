@@ -39,7 +39,7 @@ class BinderPathAnalyzer(Stage):
     # --- 세부 기능 ---------------------------------------------------------
 
     def map_aidl_to_impl(self, aosp_root: Path) -> dict[str, str]:
-        """F-301. .aidl 인터페이스 이름 -> Stub 구현 클래스(Service) 매핑 (Tree-sitter)."""
+        """F-301. .aidl 인터페이스 이름 -> Stub 구현 클래스(Service) 매핑 (Tree-sitter, config.scan_paths 범위)."""
         raise NotImplementedError
 
     def find_paths(self, change: PatchChange, aidl_map: dict[str, str], aosp_root: Path) -> list[CallPathEntry]:

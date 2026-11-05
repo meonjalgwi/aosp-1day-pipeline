@@ -1,6 +1,6 @@
 """M6. Scanner — AOSP 유사 코드 스캔 (6주차, F-601~F-603).
 
-입력: pattern.json (PatternSet, 자가 검증 통과한 규칙만) + frameworks/base
+입력: pattern.json (PatternSet, 자가 검증 통과한 규칙만) + frameworks/base 중 config.scan_paths
 출력: candidates.json
 """
 
@@ -36,7 +36,7 @@ class Scanner(Stage):
         raise NotImplementedError
 
     def scan(self, pattern: Pattern, aosp_root: Path) -> CandidateSet:
-        """F-601. 규칙을 frameworks/base 전체에 적용.
+        """F-601. 규칙을 frameworks/base 의 config.scan_paths 범위에 적용 (AOSP 전체 아님).
 
         후보마다 location(CodeRef, side="aosp", snippet 포함)과 matched(source/sink 위치) 채움.
         """

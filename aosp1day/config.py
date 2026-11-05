@@ -12,6 +12,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+DEFAULT_SCAN_PATHS = (
+    "services/*/java/com/android/server/**/*.java",   # services/core 외 devicepolicy·accessibility 등 포함
+    "core/java/android/**/*.aidl",                    # Binder/AIDL 진입점
+    "core/java/android/**/*.java",                    # Stub·Manager (진입점과 연결된 것만 M3에서 사용)
+)
+
+
 @dataclass
 class LlmConfig:
     provider: str = ""                # 예: anthropic | openai — 팀 결정 후 config.yaml 에 기록
@@ -28,8 +35,12 @@ class LlmConfig:
 @dataclass
 class DeviceConfig:
     kind: str = "cuttlefish"          # cuttlefish (1차) | emulator (2주차 기준 미달 시)
-    vulnerable_image: str = ""        # 패치 전 이미지 / 빌드 ID / jar 경로
+    env_image: str = ""               # 환경 확인용: 최신 공식 CI 사전 빌드 이미지 (2주차)
+    host_package: str = ""            # 같은 빌드의 cvd-host_package.tar.gz
+    # 동적 재현용: 기준선 CVE에 맞춰 고정 (사전 빌드 이미지 또는 교체할 모듈 jar). 확보 후 확정
+    vulnerable_image: str = ""        # 패치 전
     patched_image: str = ""           # 패치 후
+    swap_modules: list[str] = field(default_factory=list)   # 모듈 교체 방식일 때 (예: system/framework/services.jar)
     snapshot: str = "clean"           # emulator 일 때만
     boot_timeout_sec: int = 300
     # 미리 빌드한 공용 instrumentation APK 변형 (TestCase.caller.apk_variant -> APK 경로)
@@ -41,6 +52,8 @@ class DeviceConfig:
 @dataclass
 class Config:
     aosp_root: Path = Path("aosp/frameworks/base")
+    # 정적 분석(M3·M6) 범위 — aosp_root 기준 glob. feature-spec 1장 "대상 (정적 분석)"
+    scan_paths: list[str] = field(default_factory=lambda: list(DEFAULT_SCAN_PATHS))
     output_root: Path = Path("output")
     rules_dir: Path = Path("rules")
     baselines_dir: Path = Path("baselines")

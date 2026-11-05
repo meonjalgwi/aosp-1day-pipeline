@@ -38,7 +38,10 @@ class Verifier(Stage):
     # --- 세부 기능 ---------------------------------------------------------
 
     def build_info(self, side: str, ctx: PipelineContext) -> BuildInfo:
-        """config 의 취약/패치 이미지 정보 → BuildInfo (fingerprint 는 부팅 후 채움)."""
+        """config.device.vulnerable_image / patched_image (+ swap_modules) → BuildInfo.
+
+        env_image(환경 확인용 최신 CI 이미지)는 재현에 쓰지 않는다. fingerprint 는 부팅 후 채움.
+        """
         raise NotImplementedError
 
     def reset_environment(self, build: BuildInfo, ctx: PipelineContext) -> None:
