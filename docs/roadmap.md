@@ -25,7 +25,7 @@
 | 4주 | 11/16~11/23 | Binder 분석 및 AI 보조 분석 | M3 Binder Path, M4 Root Cause | AIDL 인터페이스와 구현 클래스를 연결하고 외부 진입점부터 변경 함수까지 호출 경로 추출. `LlmClient`로 패치 증거 기반 근본 원인·보안 불변식·발생 조건을 근거(`Evidence`)와 함께 생성 (`inferred` 초안). CVE 1건의 end-to-end 분석 완료 | 현아 (M4) / M3 TBD |
 | 5주 | 11/24~11/30 | 취약 패턴 및 탐지 규칙 생성 | M5 Pattern/Rule | 패치에서 source·guard·sink와 보안 불변식을 추출. 권한 검사 누락, UID–packageName 불일치 **패턴 2종** 구현 (Cross-user는 P1). Tree-sitter Query + Python matcher 규칙으로 변환하고 패치 전·후 소스에서 규칙 자가 검증 | TBD |
 | 6주 | 12/1~12/7 | AOSP 유사 취약점 스캔 | M6 Scanner, M7 Prioritizer, M10 Dashboard | 생성된 규칙을 `frameworks/base`에 적용. Binder 노출 여부, 민감 동작, 검증 누락 여부로 후보 점수화. 상위 후보 10~20건을 출력하는 Scanner 구현. Streamlit 대시보드 v1 (CVE 목록·패치·Root Cause·패턴·후보 화면, 미리 생성된 JSON만 읽음) | TBD |
-| 7주 | 12/8~12/14 | 재현 및 동적 검증 | M8 Verifier | **기준선 CVE 1건**에 테스트 APK / instrumentation template 적용 (P0, 공개 CVE 2~3건 확대는 P1). 기기 초기화 → APK 설치 → 테스트 → 로그 수집 자동화. 취약·패치 버전 차등 판정. 신규 후보는 상위 항목부터 수동·동적 검토 | 서진 (Harness) / 실행·판정 TBD |
+| 7주 | 12/8~12/14 | 재현 및 동적 검증 | M8 Verifier | **기준선 CVE 1건**: 사람이 작성한 TestCase(`baselines/<CVE-ID>.tests.json`)를 공용 instrumentation APK로 실행 (P0). 가설 기반 자동 생성과 공개 CVE 2~3건 확대는 P1. 기기 초기화 → APK 설치 → 테스트 → 로그 수집 자동화. 취약·패치 버전 차등 판정. 신규 후보는 상위 항목부터 수동·동적 검토 | 서진 (Harness) / 실행·판정 TBD |
 | 8주 | 12/15~12/21 | 통합·평가·발표 | M9 Reporter, M10 Dashboard, M11 Evaluation | 기능 동결 후 Collector, Analyzer, Pattern Generator, Scanner, Verifier 통합. 정확도·탐지율·시간 절감·오탐률 평가(P1). 대시보드 완성(검증 결과·보고서 다운로드, 공개용 마스킹 모드), JSON·Markdown·HTML 보고서, 최종 발표, 데모 영상, 책임 있는 공개용 자료 작성 | 전원 |
 
 ## 협업 규칙

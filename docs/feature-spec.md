@@ -2,7 +2,7 @@
 
 > 산출물 툴: **AOSP Framework 1-Day 패치 기반 분석·유사 취약점 탐지 도구**
 > 용어가 낯설면 [glossary.md](glossary.md) 참고
-> 상태: v0.3 (2026-11-03) — PR #20 리뷰 반영: P0 축소, Tree-sitter 통일, Cuttlefish 1차, LLM 추상화·키 관리, Streamlit 단독, 배포 원칙. PR #30 리뷰 반영: 데이터 계약에 출처(CodeRef) 추가
+> 상태: v0.3 (2026-11-03) — PR #20 리뷰 반영: P0 축소, Tree-sitter 통일, Cuttlefish 1차, LLM 추상화·키 관리, Streamlit 단독, 배포 원칙. PR #30 리뷰 반영: 데이터 계약에 출처(CodeRef) 추가. v0.3.1 (2026-11-05) — PR #30 2차 리뷰: Harness P0 범위, TestCase 구조화, CodeRef.revision, 공용 테스트 APK
 
 ## 1. 개요
 
@@ -50,7 +50,7 @@ CVE/패치 입력
 | M5. Pattern / Rule Generator | M4 결과 | `pattern.json` + 규칙 파일 | 5주 |
 | M6. Scanner | 규칙 파일 + `frameworks/base` | `candidates.json` | 6주 |
 | M7. Prioritizer | `candidates.json` | `ranked_candidates.json` | 6주 |
-| M8. Verifier — Harness | `root_cause.json` 가설 + `call_path.json` | `test_cases.json` + 테스트 APK | 7주 |
+| M8. Verifier — Harness | P0: `baselines/<CVE-ID>.tests.json`(사람 작성) / P1: `root_cause.json` 가설 + `call_path.json` | `test_cases.json` + 테스트별 파라미터 JSON | 7주 |
 | M8. Verifier — 실행·판정 | `test_cases.json` | `verification.json` + logcat | 2주(환경) · 7주 |
 | M9. Reporter | 위 JSON 전부 | `report.json`, `report.md`, `report.html` (+ `_public` 마스킹본) | 8주 |
 | M10. Web Dashboard | 모든 단계의 JSON | Streamlit 대시보드 (최종 산출물) | 6·8주 |
@@ -71,7 +71,7 @@ CVE/패치 입력
 5. 근거 기반 Root Cause 및 보안 불변식 생성 — F-401~F-403, F-405, F-406
 6. 취약 패턴 2종 (권한 검사 누락, UID–packageName 불일치) — F-501~F-504
 7. `frameworks/base` 스캔과 후보 순위화 — F-601, F-701, F-702
-8. 기준선 CVE 1건의 패치 전후 검증 — F-801, F-803, F-804, F-807, F-1105(정답 데이터)
+8. 기준선 CVE 1건의 패치 전후 검증 — F-801, F-803, F-804, F-807(사람이 작성한 TestCase 검증), F-809(공용 테스트 APK), F-1105(정답 데이터)
 9. JSON·Markdown·HTML 보고서 — F-901, F-902, F-905
 10. 미리 생성된 JSON을 보여주는 최소 대시보드 — D-1, D-3, D-4, D-6~D-9, F-1004(CLI), F-1005(설정)
 
@@ -86,7 +86,7 @@ CVE/패치 입력
 | F-103 | 패치 메타데이터 수집 | 커밋 메시지, 작성일, 부모 커밋, 변경 파일 목록 | P0 |
 | F-104 | diff·소스 저장 | 패치 diff(`patches/<hash>.diff`)와 변경 파일의 전/후 원본(`src/<hash>/before·after/`) 저장, 경로를 `cve.json`에 기록 | P0 |
 | F-105 | 예외 처리 | 잘못된 링크, 비공개 버그, 여러 브랜치에 나뉜 패치 처리 | P1 |
-| F-106 | 캐시 | 이미 수집한 CVE는 재다운로드하지 않음 | P1 |
+| F-106 | 캐시 | `cve.json`과 모든 커밋의 diff·전/후 소스가 실제로 있을 때만 재다운로드 생략 (중단된 수집은 다시 수집) | P1 |
 
 ### M2. Patch Analyzer — 패치 분석
 
@@ -149,10 +149,12 @@ CVE/패치 입력
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
 | F-801 | 환경 초기화 | Cuttlefish 재시작 (Emulator 전환 시 스냅샷 복원) | P0 |
-| F-807 | 기준선 테스트 | 기준선 CVE 1건용 테스트 APK / instrumentation을 템플릿으로 작성 (`TestCase`) | P0 |
-| F-802 | 범용 테스트 생성 (Harness) | 가설(`hypotheses`) → `TestCase`(대상 서비스·메서드, 인자, 호출자 권한, 전/후 기대 결과) → APK 자동 생성 | P1 |
+| F-807 | 기준선 테스트 (Harness P0) | 사람이 작성한 `baselines/<CVE-ID>.tests.json`(`TestCases`)을 Harness가 형식 검증(필수 필드·ValueSpec type·outcome 값)한 뒤 `test_cases.json`으로 내보냄. 파이프라인에서 Harness 단계가 P0로 끝까지 동작 | P0 |
+| F-809 | 공용 테스트 APK | 미리 빌드한 공용 instrumentation APK(권한 변형별) + 테스트별 파라미터 JSON(`am instrument`로 전달). APK가 `ValueSpec`대로 인자 조립. 같은 APK를 패치 전·후 빌드에 설치 | P0 |
+| F-802 | 테스트 자동 생성 (Harness P1) | 수동 파일이 없을 때만 가설(`hypotheses`) + 진입점 → `TestCase` 자동 생성. 만들지 못한 가설은 `skipped`에 이유 기록 | P1 |
+| F-810 | 테스트별 커스텀 빌드 | 공용 템플릿으로 표현 안 되는 PoC(콜백·Binder 객체 전달·레이스, 임의 Parcelable) | P1 |
 | F-803 | 실행 자동화 | 초기화 → APK 설치 → 테스트 실행 → logcat 수집을 한 명령으로 | P0 |
-| F-804 | 차등 판정 | 취약 버전 vs 패치 버전 결과 비교 (SecurityException, 크래시, 반환값 등). 빌드 정보·logcat 경로·판정 근거 줄 기록 | P0 |
+| F-804 | 차등 판정 | 취약 빌드 결과가 `expected_vulnerable`, 패치 빌드 결과가 `expected_patched`(`ExpectedResult`: outcome·예외 타입·반환값·로그 정규식)와 모두 맞으면 reproduced. 빌드 정보·logcat 경로·판정 근거 줄 기록. P0 대상은 CVE만 (후보 검증은 P1) | P0 |
 | F-808 | 복수 CVE 재현 | 공개 CVE 2~3건 자동 재현 | P1 |
 | F-805 | 실패 원인 분류 | 환경/빌드/가설/테스트 실패 구분 | P1 |
 | F-806 | 재시도 정책 | 부팅 지연·flaky test 재시도 | P2 |
@@ -195,7 +197,7 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 | F-1004 | CLI | `run`/`collect`/`analyze`/`binder-path`/`root-cause`/`pattern`/`scan`/`prioritize`/`harness`/`verify`/`report`/`eval`/`dashboard` | P0 |
 | F-1005 | 설정 파일 | `config.yaml`(커밋 금지, `config.example.yaml`만 커밋)에 AOSP 경로·LLM provider/model/키 환경변수 **이름**·기기 설정 | P0 |
 | F-1006 | 공개 모드 | 대시보드를 `_public` JSON만 읽는 모드로 실행 (발표용) | P1 |
-| F-1003 | 단계별 재실행 | `run --start <단계>` | P1 |
+| F-1003 | 단계별 재실행 | `run --start <단계>`. `run`은 한 단계가 실패해도 입력이 준비된 단계는 계속 실행 (실행 순서: collect → analyze → binder-path → root-cause → harness → verify → pattern → scan → prioritize → report) | P1 |
 | F-1001 | Backend API | (삭제) Streamlit 단독으로 결정 — 별도 프론트엔드가 필요해지면 재도입 | — |
 | F-1002 | 비동기 작업 큐 / WebSocket | (P2) 대시보드에서 실행 기능을 넣을 때만 | P2 |
 
@@ -220,18 +222,27 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 
 ```jsonc
 // meta — 재현성·추적성
-{ "schema_version": "0.2", "generated_at": "", "tool_version": "", "stage": "",
+{ "schema_version": "0.3", "generated_at": "", "tool_version": "", "stage": "",
   "inputs": { "<입력 산출물>": "<sha256>" } }
 
 // CodeRef — 코드 출처 (M2 hunk, M3 경로 노드, M4 근거, M6 후보, Baseline)
-{ "commit": "", "file": "", "side": "before|after|aosp",
+// revision = 이 코드가 실제로 존재하는 커밋: before → 패치 커밋의 parent / after → 패치 커밋 / aosp → 스캔한 HEAD
+{ "revision": "", "patch_commit": "", "file": "", "side": "before|after|aosp",
   "start_line": 0, "end_line": 0, "snippet": "", "diff_path": "", "class": "", "method": "" }
 
 // Evidence = CodeRef + 어떤 주장을 뒷받침하는지
 { ...CodeRef, "claim": "", "change_id": "" }
 
 // Claim — 주장 + 근거 목록 (근거가 비어 있으면 "근거 없음" 표시)
-{ "text": "", "evidence": [Evidence] }
+{ "id": "hyp-1", "text": "", "evidence": [Evidence] }
+
+// ValueSpec — 테스트 인자 (P0 type: null|bool|int|long|float|string|array|bundle|intent|ref, Parcelable은 P1)
+{ "type": "bundle", "value": null, "items": [ValueSpec], "entries": { "key": ValueSpec }, "java_type": "" }
+
+// ExpectedResult — 기대 결과 (outcome 값은 실행 결과와 공용)
+// outcome: ok | returned_data | security_exception | exception | crash | timeout
+{ "outcome": "security_exception", "exception_type": "java.lang.SecurityException",
+  "return_value": ValueSpec|null, "log_regex": "Permission Denial" }
 ```
 
 ### 4.2 단계별 산출물
@@ -246,7 +257,7 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 
 // patch_analysis.json (M2)
 { "meta": {}, "cve_id": "", "baseline_match": null,
-  "changes": [{ "id": "chg-1", "commit": "", "file": "", "class": "", "method": "",
+  "changes": [{ "id": "chg-1", "patch_commit": "", "file": "", "class": "", "method": "",
     "change_type": "permission_check|input_validation|condition|exception|other",
     "security_apis": [], "hunks": [{ "before": CodeRef, "after": CodeRef }] }] }
 
@@ -279,23 +290,29 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
     "score": 0, "score_reason": { "binder_exposed": false, "sensitive_sink": false, "guard_missing": false, "notes": "" },
     "label": "unreviewed|tp|fp|hold", "public": false }] }
 
-// test_cases.json (M8 Harness)
+// test_cases.json (M8 Harness) — P0는 baselines/<CVE-ID>.tests.json(같은 형식)을 검증해 그대로 내보냄
 { "meta": {}, "cve_id": "",
-  "tests": [{ "id": "", "hypothesis": "", "target_service": "", "target_interface": "", "target_method": "",
-    "call_args": {}, "caller": "untrusted_app", "expected_vulnerable": "", "expected_patched": "",
-    "template": "", "apk_path": "" }] }
+  "tests": [{ "id": "t-1", "source": "manual|generated", "hypothesis_id": "hyp-1", "change_id": "chg-1", "entrypoint": "",
+    "caller": { "kind": "untrusted_app|privileged_app|shell", "package": "", "apk_variant": "no_perms",
+                "granted_permissions": [], "user_id": 0, "target_sdk": null },
+    "setup": ["adb shell 명령"], "teardown": [],
+    "calls": [{ "id": "call-1", "via": "binder|intent", "service": "", "interface": "", "method": "", "args": [ValueSpec] }],
+    "expected_vulnerable": ExpectedResult, "expected_patched": ExpectedResult,
+    "template": "BinderCallTest", "params_path": "tests/t-1.json" }],
+  "skipped": [{ "hypothesis_id": "", "reason": "" }] }
 
 // verification.json (M8)
 { "meta": {}, "cve_id": "", "target": "", "verdict": "reproduced|not_reproduced|error",
   "results": [{ "test_id": "", "verdict": "", "failure_reason": "env|build|hypothesis|test",
     "vulnerable": { "build": { "side": "vulnerable", "device": "cuttlefish|emulator", "image": "", "fingerprint": "" },
-                    "outcome": "", "logcat_path": "", "log_excerpt": [], "exit_code": null },
+                    "outcome": "", "exception_type": "", "return_value": null,
+                    "logcat_path": "", "log_excerpt": [], "exit_code": null },
     "patched":    { ... } }] }
 
 // baselines/<CVE-ID>.json (3주차 수동 정답)
 { "cve_id": "", "analyst": "", "changed_methods": [CodeRef], "root_cause": "", "security_invariant": "",
   "trigger_conditions": [], "entrypoint": "", "repro_steps": [],
-  "expected_vulnerable": "", "expected_patched": "", "analysis_minutes": null }
+  "expected_vulnerable": ExpectedResult, "expected_patched": ExpectedResult, "analysis_minutes": null }
 
 // output/eval.json (M11)
 { "meta": {}, "per_cve": [{ "cve_id": "", "method_match": null, "root_cause_match": null,
@@ -313,7 +330,7 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 | 비밀값 | API 키는 환경변수로만 전달. `config.yaml`에는 provider·model·환경변수 **이름**만. `.env`·`config.yaml`은 `.gitignore`. 키를 결과 JSON·로그·프롬프트 기록·대시보드에 넣지 않음. CI는 GitHub Actions Secret |
 | 모듈성 | 단계별 독립 실행, JSON으로만 연결 (대시보드도 JSON만 읽음) |
 | 공개·배포 | 대시보드는 로컬/팀 내부에서만 실행. 미공개 후보의 코드·위치·재현 입력은 외부 공개 금지. 발표용 공개 화면은 사전 생성한 마스킹 JSON만 사용. 공개 결과물은 Markdown/HTML 보고서 또는 정적 데모 |
-| 실행 환경 | Linux + KVM (Cuttlefish), Python 3.11+, AOSP `frameworks/base` 체크아웃, ADB. Emulator 전환 시 Android SDK Emulator |
+| 실행 환경 | Linux + KVM (Cuttlefish), Python 3.11+ (필수 의존성 PyYAML·Streamlit, 분석 단계는 `[analysis]` 선택 의존성으로 Tree-sitter), AOSP `frameworks/base` 체크아웃, ADB. Emulator 전환 시 Android SDK Emulator |
 | 윤리 | 실제 공격용 exploit 미포함, 미공개 후보는 공개 보고서에서 마스킹 |
 
 ## 6. 결정 사항
@@ -326,7 +343,11 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 | LLM | `LlmClient.generate_structured(prompt, schema)` 인터페이스, 키는 환경변수, 결과는 `inferred` | PR #20 리뷰 |
 | 대시보드 | **Streamlit 단독**, 미리 생성된 JSON만 읽음 | PR #20 리뷰 |
 | 배포 | 5장 "공개·배포" | PR #20 리뷰 |
-| 데이터 계약 | 모든 코드 위치를 `CodeRef`(commit·side·줄 범위·snippet)로, 근거는 `Evidence` | PR #30 리뷰 |
+| 데이터 계약 | 모든 코드 위치를 `CodeRef`(revision·side·줄 범위·snippet)로, 근거는 `Evidence`. `revision`은 그 코드가 실제로 있는 커밋 | PR #30 리뷰 |
+| Harness 범위 | P0 = 사람이 작성한 기준선 TestCase 검증(F-807), 자동 생성(F-802)은 P1 | PR #30 2차 리뷰 |
+| 테스트 실행 | 공용 instrumentation APK + 테스트별 파라미터 JSON (F-809), 테스트별 빌드는 P1 | PR #30 2차 리뷰 |
+| TestCase | 호출자(`CallerSpec`)·setup/teardown·호출 순서(`calls`)·인자(`ValueSpec`)·기대 결과(`ExpectedResult`) 구조화 | PR #30 2차 리뷰 |
+| 실행 순서 | 기준선 검증(Harness·Verifier)을 RootCause 바로 뒤에, `run`은 실패해도 계속 | PR #30 2차 리뷰 |
 
 ## 7. 남은 논의
 
@@ -334,3 +355,9 @@ Streamlit 단독. 미리 생성된 JSON만 읽는다. P0 화면이 끝나면 여
 - [ ] Linux + KVM 머신 확보 (누가, 어디서)
 - [ ] 패치 전·후 이미지 준비 방식: CI 빌드 이미지 다운로드 vs `framework.jar`/`services.jar` 교체 vs 직접 빌드
 - [ ] LLM provider·model 선정
+
+### 테스트 APK (F-809, PR #30 서진 리뷰 5번)
+- [ ] 권한 변형 APK 구성: "권한 선언 있음 / 없음" 2개로 충분한지
+- [ ] UID–packageName 불일치용 상대역(더미) 앱이 필요한지
+- [ ] Binder 직접 호출 방식: hidden API 정책 완화 vs AIDL 복사 + `transact` — 완화한다면 패치 전·후 빌드에 동일 적용 (`device.relax_hidden_api`)
+- [ ] APK 빌드 담당·시점 (기준선 TestCase를 3주차 정답 데이터 작성 때 같이 쓸지, PR #30 서진 리뷰 7번)
