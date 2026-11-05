@@ -14,3 +14,9 @@
 - [ ] AIDL 인터페이스 ↔ Stub 구현 클래스 매핑
 - [ ] 외부 진입점 → 변경 함수 호출 경로 추출
 - [ ] 일반 앱 노출 여부 판정
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m03_binder_path.py`](../../aosp1day/stages/m03_binder_path.py)
+- 클래스: `BinderPathAnalyzer`
+- CLI: `aosp1day binder-path <CVE-ID>`

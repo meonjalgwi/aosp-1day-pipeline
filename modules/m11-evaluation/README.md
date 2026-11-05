@@ -15,3 +15,9 @@
 - [ ] 탐지율
 - [ ] 오탐률
 - [ ] 시간 절감
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m11_evaluation.py`](../../aosp1day/stages/m11_evaluation.py)
+- 클래스: `Evaluator`
+- CLI: `aosp1day eval <CVE-ID>`

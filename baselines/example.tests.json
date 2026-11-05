@@ -1,0 +1,41 @@
+{
+  "cve_id": "CVE-EXAMPLE",
+  "tests": [
+    {
+      "id": "t-1",
+      "hypothesis_id": "hyp-1",
+      "change_id": "chg-1",
+      "entrypoint": "IExampleService.getSecretForPackage",
+      "caller": {
+        "kind": "untrusted_app",
+        "package": "org.meonjalgwi.harness",
+        "apk_variant": "no_perms",
+        "granted_permissions": [],
+        "user_id": 0
+      },
+      "setup": [],
+      "calls": [
+        {
+          "id": "call-1",
+          "via": "binder",
+          "service": "example",
+          "interface": "android.example.IExampleService",
+          "method": "getSecretForPackage",
+          "args": [
+            { "type": "string", "value": "com.android.victim" },
+            { "type": "int", "value": 0 },
+            { "type": "null" }
+          ]
+        }
+      ],
+      "teardown": [],
+      "expected_vulnerable": { "outcome": "returned_data", "log_regex": "" },
+      "expected_patched": {
+        "outcome": "security_exception",
+        "exception_type": "java.lang.SecurityException",
+        "log_regex": "Permission Denial"
+      },
+      "template": "BinderCallTest"
+    }
+  ]
+}

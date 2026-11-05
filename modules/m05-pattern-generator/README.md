@@ -15,3 +15,9 @@
 - [ ] 패턴 2종 (권한 검사 누락 / UID–packageName) — Cross-user는 P1
 - [ ] Tree-sitter Query + Python matcher 규칙 변환
 - [ ] 취약·패치 버전에서 규칙 자가 검증
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m05_pattern_generator.py`](../../aosp1day/stages/m05_pattern_generator.py)
+- 클래스: `PatternGenerator`
+- CLI: `aosp1day pattern <CVE-ID>`
