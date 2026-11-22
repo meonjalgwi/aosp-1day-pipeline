@@ -1,6 +1,6 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): AOSP 공개 패치 전체로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)**)
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): AOSP 공개 패치 전체로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 새 형식 대응 → [novel-patterns.md](novel-patterns.md))
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 

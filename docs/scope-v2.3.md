@@ -26,6 +26,8 @@
 
 ---
 
+> **처음 보는 형식은?** 아래 트랙 A·B·C 에 맞지 않는 패치도 범위 밖으로 버리지 않는다. 템플릿 없이 LLM 이 규칙 전체를 합성하는 T2, 그것도 안 되면 탐색형 T3 로 처리하고, 승인된 규칙은 패턴 라이브러리에 쌓는다 → [novel-patterns.md](novel-patterns.md)
+
 ## 1. 대상 범위
 
 | 항목 | v2.2 | v2.3 |
@@ -63,7 +65,7 @@ Source–Guard–Sink 는 그대로 쓰고, 트랙마다 각 요소를 정하는
 | `ADDED_GUARD` | 패치 후에만 있는 **카탈로그** Guard 유형 존재 | A |
 | `ADDED_CHECK` | 카탈로그엔 없지만, + 줄에 `if (조건) { return/throw/continue/null 반환 }` 가 생겼고 그 뒤에 특정 API 호출이 있음 | B |
 | `API_REPLACE` | − 줄의 호출과 + 줄의 호출이 같은 이름·다른 인자 수/타입, 또는 문서상 대체 API | C |
-| `CONDITION_CHANGE` · `BYPASS` · `OTHER` | 기존과 같음 | 범위 밖 기록 |
+| `NOVEL` | 위 셋과 패턴 라이브러리 어디에도 맞지 않는 코드 변경 (`CONDITION_CHANGE`·`BYPASS`·`OTHER` 포함) | **T2 열린 합성 → T3 탐색형** ([novel-patterns.md](novel-patterns.md)) |
 
 **표본 17건 재분류 (추정, diff 요약 기준):** A 3건(40105, 40124, 43082) · B 3건(40111, 0086, 49740) · C 1건(40109) · 범위 밖 10건. **대상 비율 약 6% → 약 40%.** 정확한 값은 `dataset` 전수로 확인한다.
 
