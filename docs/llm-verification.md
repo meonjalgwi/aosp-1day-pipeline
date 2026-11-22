@@ -191,6 +191,8 @@ flowchart TD
 | D. C + critic (L4) | likely 중 반박된 비율, 반박이 맞았던 비율 |
 | E. D 의 critic 을 같은 모델로 | 교차 모델 효과 (자기 선호 편향 [9] 의 영향) |
 
+**시간 누수 주의 (v2.4 L3):** LLM 이 평가 대상 이후의 패치를 학습했을 수 있다. 회고 검증 수치의 주 결과는 LLM 을 끈 설정 A 로 내고, B~E 는 "LLM 이 답을 알 가능성" 을 명시해 보조 결과로만 쓴다. 사용 모델의 공개된 학습 시점을 `eval.json` 에 기록한다.
+
 지표: 상위 N Precision, 사람 라벨과의 일치율(Cohen's κ), `unsure` 비율, CVE 당 LLM 호출 수·시간. 결과는 `eval.json` 의 `llm_ablation` 에 남기고 대시보드 평가 지표 영역에 보인다.
 
 ---

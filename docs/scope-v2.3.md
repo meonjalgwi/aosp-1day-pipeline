@@ -119,7 +119,7 @@ Source–Guard–Sink 는 그대로 쓰고, 트랙마다 각 요소를 정하는
 1. 가장 이른 패치 CVE-2023-40124 (2023-11) 로 규칙을 만든다.
 2. 2023-11 시점의 AOSP revision 을 스캔한다.
 3. 이후 1년 반 동안 따로 고쳐진 4곳 (Autofill SaveUi·인라인 제안 2024-02, PrintManagerService 2024-03, SettingsLib EditUserPhotoController 2024-11, ChooserActivity 2025-04) 중 몇 곳이 후보에 나오는지 센다.
-4. 결과를 "패치 공개 시점에 도구를 돌렸다면 몇 달 앞서 찾을 수 있었다" 로 발표한다. 놓친 곳은 Guard 형태 차이(K4)·Kotlin(K2) 등 원인을 함께 보고한다.
+4. 결과를 "패치 공개 시점에 도구를 돌렸다면 몇 달 앞서 찾을 수 있었다" 로 발표한다. **주 결과는 LLM 을 끄고 규칙을 2023-11 시점에 고정한 스캔**으로 낸다 (LLM 시간 누수, [limitations.md](limitations.md) L3). 2026년 이후 시점은 공개 릴리스 단위로만 나눌 수 있다 (L1). 놓친 곳은 Guard 형태 차이(K4)·Kotlin(K2) 등 원인을 함께 보고한다.
 
 ---
 
