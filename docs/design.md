@@ -858,6 +858,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
 - 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
+- **범위 결정 (이번 주):** ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))
 - [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `ADDED_GUARD` 비율 측정(이번 주), M7 sink 의미 질문
 - 담당 재확정
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
