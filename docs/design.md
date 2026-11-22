@@ -1,6 +1,6 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영)
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md))
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
@@ -306,6 +306,8 @@ class Config:                        # 기존 필드 유지
 LLM 출력은 항상 "번호로 고르기"를 우선한다. M4는 Guard·Sink 후보 번호를 고르고, M5는 카탈로그에 있는 API 이름만 쓸 수 있으며, M7은 제공된 줄 번호만 근거로 인정한다. 없는 메서드나 호출을 LLM이 지어내도 다음 단계로 넘어가지 못하게 하려는 장치다.
 
 **[v2.1 R5] LLM 이 결정하지 않는 것.** 규칙 채택(M5 `self_check` 통과 여부), 후보 탈락(M7 필터), 라벨(사람)은 코드나 사람만 정한다. LLM 결과가 바꿀 수 있는 값은 M4 의 S·G·S 선택(코드 대조 후), M5 의 규칙 파라미터 초안(검증 통과 시에만 사용), M7 의 `review_verdict`(점수의 `review` 항, 가중치 0.2) 세 가지뿐이다. 따라서 LLM 을 꺼도(`--no-review`, seed 만 사용) 파이프라인은 같은 형식의 결과를 낸다.
+
+**[v2.2] LLM 검증 계층.** 호출 지점별 검증 계층(M4 표본 일치도, M7 질문 분해·`derive_verdict`·교차 모델 비판), 재현성·호출 상한, LLM 효과 비교 실험과 근거 문헌은 [llm-verification.md](llm-verification.md)에 둔다. 이에 따른 스키마·설정 추가분(`SgsDraft.agreement`, `ReviewAnswer`, `Critique`, `CandidateReview.answers`, `LlmConfig.consistency_samples`·`critic_*`·`max_calls_per_cve`)은 그 문서 6절을 따른다. 우선순위: 질문 분해·근거 대조·코드 판정은 **P0**, 표본 일치도·비판자·비교 실험은 **P1**, 라벨 기억은 **P2**.
 
 ### 2.5 `analysis/` — 공유 Tree-sitter 도구
 
@@ -672,6 +674,8 @@ class CodeIndexer:
 | `explain(candidate) -> ScoreReason` | 유지 | |
 | `score(reason, weights) -> float` | 유지 | 아래 식 (F-701) |
 | `review(client, candidate, pattern, analysis, index) -> CandidateReview` | **추가** | `prompts/candidate_review.md`: 원본 diff, 패턴 S·G·S, 후보 경로 메서드 본문(줄 번호 포함), 발견된 Guard. 질문은 세 가지로 고정 — Guard 가 정말 없는가, 다른 형태의 검사가 있는가, 일반 앱이 도달 가능한가 (F-704) |
+| `derive_verdict(answers) -> str` | **추가 (v2.2, P0)** | 질문별 답(`q_guard`·`q_alt_check`·`q_reach`)에서 코드 규칙으로 `likely`/`unlikely`/`unsure` 계산. LLM 의 전체 판정은 받지 않음 ([llm-verification.md](llm-verification.md) 3.3) |
+| `critique(critic, candidate, review) -> Critique` | **추가 (v2.2, P1)** | `likely` 후보만. 반박 근거가 대조를 통과하면 `unsure` 로 낮춤 |
 | `ground_review(raw, candidate, index) -> CandidateReview` | **추가** | 근거 줄이 제공한 메서드 범위 안 실제 줄인지 확인. 하나라도 아니면 `grounded=False`, `verdict="unsure"` |
 | `rank(candidates, top_n, weights) -> RankedCandidates` | 유지 | (F-702) |
 | `apply_label(candidate, label) -> Candidate` | 유지 (P1) | `labels.json` 에서 읽어 반영 (F-703) |
