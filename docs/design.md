@@ -1,6 +1,6 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md))
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): AOSP 공개 패치 전체로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)**)
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
@@ -55,6 +55,7 @@
 | P0 8번 | 기준선 CVE 1건 패치 전후 동적 검증 | 기준선 CVE 3~5건 **규칙 자가 검증** 통과 | M8 제외 |
 | M2 수정 유형 분류 | F-202 (P1) | **`fix_kind` P0**. `ADDED_GUARD` 만 이후 단계로 | v2.1 R2 |
 | 도달성·상위 Guard 판정 | 있음/없음 | **3값**(`resolved`·`partial`·`unknown`), `unknown` 은 감점만 | v2.1 R3 |
+| 대상 범위 (v2.3 제안) | system_server 권한 검사 누락 | **AOSP 공개 패치 전체**, 3개 트랙(A 권한형 + URI_USER · B 검사형 · C API 교체형), Source 에 `APP_OBJECT` 추가 | [scope-v2.3.md](scope-v2.3.md) |
 
 ### 0.3 실행 순서
 
@@ -858,7 +859,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
 - 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
-- **범위 결정 (이번 주):** ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))
+- **범위 결정 → v2.3 제안으로 정리됨** ([scope-v2.3.md](scope-v2.3.md), 팀 리뷰 후 확정). 이전 메모: ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))
 - [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `ADDED_GUARD` 비율 측정(이번 주), M7 sink 의미 질문
 - 담당 재확정
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
