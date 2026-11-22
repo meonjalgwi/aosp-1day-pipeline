@@ -17,3 +17,9 @@
 - [ ] D-7 후보 순위와 코드 근거
 - [ ] D-8 검증 결과 / D-9 보고서 다운로드
 - [ ] (P1) 공개용 마스킹 모드, D-5 호출 경로, D-10 평가, 후보 라벨링
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/dashboard/app.py`](../../aosp1day/dashboard/app.py) (Streamlit, 화면별 `page_*` 함수)
+- CLI: `aosp1day dashboard [--port 8501]`
+- Backend API·작업 큐 없음 — `output/<CVE-ID>/*.json` 만 읽음

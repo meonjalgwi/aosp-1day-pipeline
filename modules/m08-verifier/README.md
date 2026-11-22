@@ -18,3 +18,12 @@
 - [ ] 초기화 → 설치 → 테스트 → logcat 수집 자동화
 - [ ] 취약·패치 버전 차등 판정
 - [ ] 실패 원인 분류
+
+## 설계 뼈대 (코드)
+
+- Harness (서진): [`aosp1day/stages/m08_harness.py`](../../aosp1day/stages/m08_harness.py) — 클래스 `Harness`, CLI `aosp1day harness <CVE-ID> [--tests 파일]`
+  - P0 (F-807): `baselines/<CVE-ID>.tests.json`(사람 작성, 예시 `baselines/example.tests.json`)을 검증해 `test_cases.json`으로 내보냄
+  - P1 (F-802): 위 파일이 없으면 `root_cause.json`(hypotheses) + `call_path.json`으로 자동 생성, 못 만든 가설은 `skipped`
+  - 테스트별 파라미터 `tests/<id>.json` 생성 → 공용 instrumentation APK가 읽음 (테스트별 APK 빌드 없음)
+- 실행·판정: [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py) — 클래스 `Verifier`, CLI `aosp1day verify <CVE-ID>`
+  - 입력 `test_cases.json` → 출력 `verification.json`(`TestVerdict` 목록, 빌드 정보·logcat 경로 포함)

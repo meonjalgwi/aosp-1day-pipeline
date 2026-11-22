@@ -15,3 +15,9 @@
 - [ ] HTML 보고서 (diff 하이라이트)
 - [ ] 근거 링크
 - [ ] 공개용 마스킹 버전
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m09_reporter.py`](../../aosp1day/stages/m09_reporter.py)
+- 클래스: `Reporter`
+- CLI: `aosp1day report <CVE-ID>`

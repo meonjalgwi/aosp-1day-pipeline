@@ -14,3 +14,9 @@
 - [ ] 점수화 (Binder 노출 + 민감 동작 + 검증 누락)
 - [ ] 상위 10~20건 출력 및 근거 표시
 - [ ] 수동 라벨링 (TP/FP/보류)
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m07_prioritizer.py`](../../aosp1day/stages/m07_prioritizer.py)
+- 클래스: `Prioritizer`
+- CLI: `aosp1day prioritize <CVE-ID>`

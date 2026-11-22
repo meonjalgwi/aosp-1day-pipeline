@@ -17,3 +17,9 @@
 - [ ] 근거(diff 줄·파일 위치) 연결
 - [ ] JSON 스키마 검증 및 재시도
 - [ ] CVE 1건 end-to-end 분석
+
+## 설계 뼈대 (코드)
+
+- 구현 위치: [`aosp1day/stages/m04_root_cause.py`](../../aosp1day/stages/m04_root_cause.py)
+- 클래스: `RootCauseAnalyzer`
+- CLI: `aosp1day root-cause <CVE-ID>`
