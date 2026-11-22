@@ -22,7 +22,7 @@
 | 2024-11 | CVE-2024-43082 | SettingsLib `EditUserPhotoController` | Java | `getUserIdFromUri(pictureUri)` 와 `UserHandle.myUserId()` 비교 |
 | 2025-04 | CVE-2025-22416 | `ChooserActivity` (`core/java`) | Java | 새 `hasValidIcon`: URI 아이콘에 대해 `checkGrantUriPermission_ignoreNonSystem(...)` 로 읽기 권한 확인 |
 
-같은 결함(앱이 준 URI 를 다른 사용자 것인지 확인 없이 로드)이 1년 반 동안 5개 컴포넌트에서 따로 고쳐졌다. **Java 로 된 첫 패치(CVE-2024-0037, 2024-02)에서 규칙을 만들어 그 시점 코드를 스캔했다면 이후 3곳을 미리 찾을 수 있었는가** 가 이 프로젝트의 가장 설득력 있는 회고 검증이 된다(§5). 가장 이른 CVE-2023-40124 는 Kotlin 이라 출발점에서 뺐다.
+같은 유형의 결함(앱이 준 URI 를 다른 사용자 것인지 확인 없이 로드)이 1년 반 동안 5개 컴포넌트에서 따로 고쳐졌다. **Java 로 된 첫 패치(CVE-2024-0037, 2024-02)에서 규칙을 만들어 그 시점 코드를 스캔했다면 이후 3곳을 미리 찾을 수 있었는가** 가 이 프로젝트의 가장 설득력 있는 회고 검증이 된다(§5). 가장 이른 CVE-2023-40124 는 Kotlin 이라 출발점에서 뺐다.
 
 **같은 계열이지만 다른 방식으로 고친 것** (URI_USER Guard 추가가 아니라 트랙 A 템플릿 대상은 아님, `NOVEL` 로 처리): CVE-2024-49722 (EditUserPhotoController 인텐트 대상 명시 — `OTHER`) · CVE-2025-0083 (Telecom StatusHints, 기존 cross-user 검사의 파싱 수정 — `CONDITION_CHANGE`) · CVE-2024-43090 (SystemUI, 앱 제공 단축키 아이콘 정리 — `OTHER`). 이 문서의 위 표와 이 목록이 URI 반복 사례의 기준 목록이다 ([walkthrough](walkthrough-cve-2023-40105.md) 0.1 은 표본 17건 안의 것만 언급).
 
