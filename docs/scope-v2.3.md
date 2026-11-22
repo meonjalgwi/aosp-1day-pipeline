@@ -1,11 +1,13 @@
-# 범위 확장 v2.3 — AOSP 공개 패치 전체를 대상으로
+# 범위 확장 v2.3 — 지원 대상에 해당하는 AOSP 공개 보안 패치로
 
 > 2026-11-23 · 김나연 · **팀 리뷰 후 확정** (이 문서는 제안)
 > 관련: [design.md](design.md) · [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md) (표본 측정 근거) · [llm-verification.md](llm-verification.md)
 
 ## 0. 결정과 이유
 
-**결정:** 이 도구는 분석가의 1-Day 후속 분석 **효율을 높이는 도구**이므로, 한 영역의 전문성보다 **넓은 효용성**을 우선한다. 대상을 "system_server 의 권한 검사 누락"에서 **"AOSP 에 공개된 보안 패치 전체 (Android 보안 공지에 AOSP 커밋 링크가 있는 항목)"** 로 넓힌다. 모델(Source–Guard–Sink)은 버리지 않고 **Source·Guard 의 정의를 일반화**한다.
+**결정:** 이 도구는 분석가의 1-Day 후속 분석 **효율을 높이는 도구**이므로, 한 영역의 전문성보다 **넓은 효용성**을 우선한다. 대상을 "system_server 의 권한 검사 누락"에서 **"지원 대상에 해당하는 AOSP 공개 보안 패치"**(1절 정의: 보안 공지에 AOSP 커밋 링크가 있고 Java·Kotlin 코드 변경으로 결함을 고친 패치)로 넓힌다. **모든 AOSP 패치를 처리한다는 뜻이 아니다.** Source–Guard–Sink 구조는 그대로 두고 **Source·Guard 의 정의를 일반화**한다.
+
+새 패치가 들어온다는 것은 모델을 재학습한다는 뜻이 아니라, 그 패치에서 탐지 규칙을 새로 생성하고 차분 오라클로 검증한다는 뜻이다. 이 문서들에서는 이 처리 방식을 **패치 기반 규칙 생성 파이프라인**이라고 부른다.
 
 **근거 (11/23 diff 확인):**
 
@@ -26,18 +28,28 @@
 
 ---
 
-> **처음 보는 형식은?** 아래 트랙 A·B·C 에 맞지 않는 패치도 범위 밖으로 버리지 않는다. 템플릿 없이 LLM 이 규칙 전체를 합성하는 T2, 그것도 안 되면 탐색형 T3 로 처리하고, 승인된 규칙은 패턴 라이브러리에 쌓는다 → [novel-patterns.md](novel-patterns.md)
+> **템플릿에 없는 형식은?** 지원 대상 패치라면 아래 트랙 A·B·C 에 맞지 않아도 범위 밖으로 버리지 않는다. 템플릿 없이 LLM 이 규칙 전체를 합성하는 T2, 그것도 안 되면 탐색형 T3 로 처리하고, 승인된 규칙은 패턴 라이브러리에 쌓는다 → [novel-patterns.md](novel-patterns.md)
 
 ## 1. 대상 범위
 
+### 1.1 지원 대상 정의
+
+| 구분 | 기준 |
+| --- | --- |
+| **지원 대상** | ① Android 보안 공지(2023~2025)에 AOSP 커밋 링크가 있음 ② 그 커밋이 **Java(P0)·Kotlin(P1) 코드**를 바꿔 결함을 고침 ③ 수정 지점이 diff 에서 분리됨 |
+| **지원 대상 밖** (사유와 함께 기록) | 네이티브(C/C++)·커널·벤더/비공개 수정, 리소스·설정만 변경, 생성 코드만 변경, 수정 지점을 분리할 수 없는 대규모 리팩터링 |
+| **후속 범위** | 동적 재현·패치 전후 실행 검증 (M8) |
+
+### 1.2 v2.2 → v2.3 변경
+
 | 항목 | v2.2 | v2.3 |
 | --- | --- | --- |
-| 패치 출처 | Framework CVE 중 system_server | **보안 공지의 AOSP 커밋 링크 전체** (2023~2025). 저장소 무관 — `frameworks/base`, `packages/*`, `packages/modules/*` 등 |
+| 패치 출처 | Framework CVE 중 system_server | 보안 공지의 AOSP 커밋 링크 중 **1.1 지원 대상** (2023~2025). 저장소는 `frameworks/base`, `packages/*`, `packages/modules/*` 등 |
 | 스캔 대상 코드 | `services/**`, `core/java/**` | 패치가 나온 저장소 + **같은 검사가 반복될 만한 저장소** (기본: `frameworks/base` 전체, `packages/apps/Settings`, `packages/modules/*` 중 Java). 저장소 목록은 `scan_repos` 설정 |
 | 언어 | Java | **Java (P0)**, Kotlin (P1), C/C++ (P2, 범위 밖으로 기록) |
 | 패턴 | 권한 검사 누락 2종 | **3개 트랙** (아래) |
 
-## 2. 모델 일반화 — 3개 트랙
+## 2. 구조 일반화 — 3개 트랙
 
 Source–Guard–Sink 는 그대로 쓰고, 트랙마다 각 요소를 정하는 방법만 다르다.
 
@@ -114,7 +126,7 @@ Source–Guard–Sink 는 그대로 쓰고, 트랙마다 각 요소를 정하는
 | 기준선 B-1 | CVE-2023-40111 | B · `isActivity()` 앞 `setMediaButtonReceiver` | Track B 구조 검증 |
 | 기준선 C-1 | CVE-2023-40109 | C · `readParcelableArray(ClassLoader)` | Track C 구조 검증 |
 
-**대표 회고 검증 — URI_USER 계열 시간순 재현:**
+**대표 회고 검증 — URI_USER 계열 시간순 재구성:**
 
 1. 가장 이른 패치 CVE-2023-40124 (2023-11) 로 규칙을 만든다.
 2. 2023-11 시점의 AOSP revision 을 스캔한다.

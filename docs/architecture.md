@@ -49,7 +49,7 @@ flowchart LR
 
 ## 1. 파이프라인 단계와 산출물 (M1 → M9)
 
-각 단계는 `output/<CVE-ID>/*.json` 으로만 연결되고, 앞 단계 JSON 만 있으면 독립 실행된다. 모든 산출물은 `meta`(스키마 버전·생성 시각·입력 해시)를 가지고, 코드 위치는 전부 `CodeRef`(revision·side·줄 범위·snippet)로 표현한다. 실행 순서는 `collect → analyze → binder-path → root-cause → pattern → scan → prioritize → report`. M8(Harness·Verifier)은 P2 로 `PIPELINE` 에서 빠졌다.
+각 단계는 `output/<CVE-ID>/*.json` 으로만 연결되고, 앞 단계 JSON 만 있으면 독립 실행된다. 모든 산출물은 `meta`(스키마 버전·생성 시각·입력 해시)를 가지고, 코드 위치는 전부 `CodeRef`(revision·side·줄 범위·snippet)로 표현한다. 실행 순서는 `collect → analyze → binder-path → root-cause → pattern → scan → prioritize → report`. M8(Harness·Verifier, 동적 재현)은 **후속 범위**로 이번 프로젝트에서 제외돼 `PIPELINE` 에 없다.
 
 v2.1 에서 노랑 게이트 세 개가 추가됐다: M2 의 수정 유형 분기(R2), M5 의 대조군 예산(R1), M6 의 스캔 예산(R1).
 
@@ -155,7 +155,7 @@ flowchart TB
     cli["cli.py<br/>서브커맨드 파싱"] --> pipe["pipeline.py<br/>Pipeline (실패 시 ok=False)"]
     cli --> dash["dashboard/app.py<br/>Streamlit"]
     pipe --> reg["stages/__init__.py<br/>PIPELINE · STANDALONE"]
-    reg --> stages["stages/m01..m07, m09, m11<br/>+ m07_filters.py<br/>(m08_* 는 STANDALONE, P2)"]
+    reg --> stages["stages/m01..m07, m09, m11<br/>+ m07_filters.py<br/>(m08_* 는 후속 범위, STANDALONE)"]
     stages --> analysis["analysis/<br/>javaast · security_apis · sinks<br/>aidl · index · callgraph (reach, 3값)"]
     stages --> engine["ruleengine/<br/>templates/*.scm · spec (lint) · matcher"]
     engine --> analysis
@@ -284,7 +284,7 @@ flowchart LR
 | 전체 구조: 패치 → 규칙 → 대규모 스캔 | LLM 이 코드를 직접 다 읽지 않고, 과거 패치로부터 **정적 체커**를 만들어 스캔하게 함. 원본 패치로 체커를 검증해 환각을 줄임 | KNighter [L1] |
 | LLM 은 명세 추론·맥락 분석, 탐지는 정적 분석기 | LLM 이 source·sink 명세를 추론하고 CodeQL 이 탐지, 결과를 LLM 맥락 분석으로 거름 | IRIS [L2] |
 | "취약 시그니처는 맞고 패치 시그니처는 안 맞는" 판정 | 패치 전 탐지·패치 후 미탐지를 규칙 채택 조건으로 사용 | MVP [S5] (반복 취약점 탐지) |
-| Source–Guard–Sink 모델, Guard 유형 정규화 | 서비스 진입점에서 민감 동작까지 경로의 보안 검사를 유형으로 묶어 비교 | Invetter [S4], AceDroid [S3], Kratos [S2], ACMiner [S6] |
+| Source–Guard–Sink 구조, Guard 유형 정규화 | 서비스 진입점에서 민감 동작까지 경로의 보안 검사를 유형으로 묶어 비교 | Invetter [S4], AceDroid [S3], Kratos [S2], ACMiner [S6] |
 | 경로 전체에서 Guard 수집 (`caller_depth`) | 프레임워크의 권한 검사는 민감 동작과 다른 위치에 있는 경우가 많음(permission locality) | Axplorer [S1] |
 | `@EnforcePermission`·identity 해제 구간 처리 | Android 고유의 권한 강제·호출자 신원 규칙 | AOSP 소스 규약 (Binder `clearCallingIdentity`, `@EnforcePermission` 코드 생성) |
 | M7 질문 분해·코드 판정 | 분석을 하위 과제로 쪼개 각 답을 검증 | LLift [L3], LLMDFA [L4], GitHub Security Lab Taskflow [L12] |

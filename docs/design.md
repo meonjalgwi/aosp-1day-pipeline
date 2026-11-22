@@ -1,12 +1,12 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): AOSP 공개 패치 전체로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 새 형식 대응 → [novel-patterns.md](novel-patterns.md) · v2.4: 한계 대응 → [limitations.md](limitations.md))
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): 지원 대상에 해당하는 AOSP 공개 보안 패치로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 패치 기반 규칙 생성 파이프라인 → [novel-patterns.md](novel-patterns.md) · v2.4: 한계 대응 → [limitations.md](limitations.md) · 지원 대상 정의는 [scope-v2.3.md](scope-v2.3.md) 1절)
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
 기존 뼈대(`aosp1day/`, M1~M11, `Stage`, `schemas.py`, `output/<CVE-ID>/`, Streamlit)는 그대로 쓰고, 목표만 "1-Day 재현"에서 "공개 패치의 결함 구조로 다른 System Service의 변종 후보 탐지"로 바꾼다. 코드에서 바뀌는 것은 세 가지다.
 
-1. M8(Harness·Verifier)은 P0에서 빠진다. 코드와 스키마는 남기고 `PIPELINE`에서만 제외한다.
+1. M8(Harness·Verifier, 동적 재현)은 **후속 범위**로 이번 프로젝트의 산출물·평가·일정에서 제외한다. 코드와 스키마 뼈대만 남기고 `PIPELINE`에서 뺀다.
 2. M5에 LLM 규칙 파라미터 초안과, 자가 검증 실패 시 재생성 루프가 들어간다.
 3. M7에 오탐 필터와 LLM 후보 검토가, M11에 회고 검증이 들어간다.
 
@@ -59,22 +59,22 @@
 | 항목 | v0.3.1 | v2 | 근거 |
 | --- | --- | --- | --- |
 | 목표 | 1-Day 재현·원인 분석 | 패치의 Source–Guard–Sink 구조로 다른 System Service의 변종 후보 탐지 | 제안서 |
-| M8 Harness·Verifier | P0 (기준선 1건 동적 검증) | **P2**. 최종 발표 때 상위 후보를 수동 재현하는 선택 목표 | 11/11 피드백(재현 제외), 남은 기간 |
-| M4 Root Cause | 근본 원인·불변식·재현 가설 | 근본 원인·불변식 + **S·G·S 초안**(`SgsDraft`). 가설(`hypotheses`)은 P2 | M8 제외 |
+| M8 Harness·Verifier | P0 (기준선 1건 동적 검증) | **후속 범위** (이번 프로젝트 제외). 코드·스키마 뼈대만 유지 | 11/11 피드백(재현 제외), 11/23 리뷰 |
+| M4 Root Cause | 근본 원인·불변식·재현 가설 | 근본 원인·불변식 + **S·G·S 초안**(`SgsDraft`). 재현 가설(`hypotheses`)은 후속 범위 | M8 제외 |
 | M5 Pattern/Rule | 패턴 → 규칙 + 자가 검증 | + **LLM 규칙 파라미터 초안**, 검증 실패 시 피드백 재생성(최대 3회) | 제안서 "LLM은 규칙 초안" |
 | M7 Prioritizer | 점수화·상위 N | + **오탐 필터**, + **LLM 후보 검토**(상위 K, `inferred`) | 11/18 멘토 피드백 |
 | M11 Evaluation | 정확도·탐지율·오탐률·시간 | + **회고 검증**(이후 ASB 패치와 후보 대조) | 제안서 평가 방법 |
-| 대시보드 | D-1·3·4·6·7·8·9 | D-8(동적 검증) P2, **D-5(규칙 검증)** 추가, 제안서 5개 탭에 매핑 | 제안서 산출물 |
+| 대시보드 | D-1·3·4·6·7·8·9 | D-8(동적 검증) **후속 범위**, **D-5(규칙 검증)** 추가, 제안서 5개 탭에 매핑 | 제안서 산출물 |
 | P0 8번 | 기준선 CVE 1건 패치 전후 동적 검증 | 기준선 CVE 3~5건 **규칙 자가 검증** 통과 | M8 제외 |
 | M2 수정 유형 분류 | F-202 (P1) | **`fix_kind` P0**. `ADDED_GUARD` 만 이후 단계로 | v2.1 R2 |
 | 도달성·상위 Guard 판정 | 있음/없음 | **3값**(`resolved`·`partial`·`unknown`), `unknown` 은 감점만 | v2.1 R3 |
-| 대상 범위 (v2.3 제안) | system_server 권한 검사 누락 | **AOSP 공개 패치 전체**, 3개 트랙(A 권한형 + URI_USER · B 검사형 · C API 교체형), Source 에 `APP_OBJECT` 추가 | [scope-v2.3.md](scope-v2.3.md) |
+| 대상 범위 (v2.3 제안) | system_server 권한 검사 누락 | **지원 대상에 해당하는 AOSP 공개 보안 패치**(Java·Kotlin 코드 수정), 3개 트랙(A 권한형 + URI_USER · B 검사형 · C API 교체형), Source 에 `APP_OBJECT` 추가 | [scope-v2.3.md](scope-v2.3.md) |
 
 ### 0.3 실행 순서
 
 ```
 collect → analyze → binder-path → root-cause → pattern → scan → prioritize → report
-(독립) eval · dataset · index · dashboard        (P2) harness · verify
+(독립) eval · dataset · index · dashboard        (후속 범위) harness · verify
 ```
 
 ---
@@ -164,7 +164,7 @@ class SgsDraft:
 class RootCause:                         # 기존 필드 유지
     ...
     sgs: list[SgsDraft] = field(default_factory=list)   # [추가]
-    # hypotheses 는 P2 (M8 복귀 시 사용)
+    # hypotheses 는 후속 범위 (동적 재현 확장 시 사용)
 
 # --- M5: 규칙 파라미터와 시도 기록 -----------------------------------------
 @dataclass
@@ -790,7 +790,7 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 | 탐지 규칙 | `page_rules(cve_id)` **추가** | D-5 | `pattern.json` attempts, `rules/<CVE>/*.scm/.yaml` | P0 |
 | 변종 후보 | `page_candidates(cve_id)` | D-7 | `ranked_candidates.json`, `labels.json` | P0 |
 | 보고서 | `page_report(cve_id)` | D-9 | `report.*` (한/영 전환, 다운로드) | P0 |
-| — | `page_verification(cve_id)` | D-8 | `verification.json` | P2 |
+| — | `page_verification(cve_id)` | D-8 | `verification.json` | 후속 범위 |
 
 | 함수 | 역할 |
 | --- | --- |
@@ -812,7 +812,7 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 ```python
 PIPELINE = (Collector, PatchAnalyzer, BinderPathAnalyzer, RootCauseAnalyzer,
             PatternGenerator, Scanner, Prioritizer, Reporter)
-STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
+STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 범위 (이번 프로젝트 제외)
 ```
 
 | 명령 | 동작 | 변경 |
@@ -826,7 +826,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 | `aosp1day dataset [--from 2023 --to 2025]` | `output/dataset.csv` | 추가 |
 | `aosp1day index [--rev REV]` | M6 인덱스 미리 빌드 | 추가 |
 | `aosp1day dashboard [--port 8501] [--public]` | Streamlit | `--public` 추가 |
-| `aosp1day harness / verify <CVE>` | M8 | P2 |
+| `aosp1day harness / verify <CVE>` | M8 | 후속 범위 (이번 프로젝트 제외) |
 
 ---
 
@@ -840,7 +840,9 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 | 5주 (11/24~11/30) | `llm.py` 구현체·`call_structured`, Pipeline·CLI 변경 | `analysis/aidl`·`callgraph`(파일 모드), M3, M4 | `ruleengine/matcher`(파일 모드), M5 `seed_params`·`self_check`·`adopt_rule` |
 | 6주 (12/1~12/7) | 대시보드 탭 1~3, `analysis/index` | M5 `draft_params` 프롬프트, M7 필터 | `matcher`(인덱스 모드), M6 |
 | 7주 (12/8~12/14) | 대시보드 탭 4~5·라벨, M9 | M7 `review`·`ground_review`·점수 | M11 회고 검증·지표 |
-| 8주 (12/15~12/21) | 통합·발표 | 후보 수동 검토 | 평가 정리, (선택) 상위 후보 재현 |
+| 8주 (12/15~12/21) | 통합·발표 | 후보 수동 검토 | 평가 정리 |
+
+> v2.3 이후의 5~8주 일정·담당은 [scope-v2.3.md](scope-v2.3.md) 6절과 [roadmap.md](roadmap.md) 가 우선한다. 위 표는 v2.1 시점 계획이다.
 
 **[v2.1] 5주차 마일스톤 — 수직 관통(vertical slice).** 5주 끝(11/30)까지 기준선 CVE **1건**을 파일 모드로 `collect → analyze → binder-path → root-cause → pattern` 까지 한 번 통과시킨다. 품질은 낮아도 된다(M4 는 LLM 대신 0번 후보 고정, M3 는 같은 클래스 안만). 목적은 `classify_fix`(R2)·`control_hits`(R1)·`unresolved_ratio`(R3) 문제가 6주차 인덱스 작업 전에 드러나게 하는 것이다. 일정이 밀리면 M9 HTML·영문판과 M8 부터 덜어낸다.
 
@@ -870,7 +872,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 | 기능 ID | 변경 |
 | --- | --- |
 | P0 8번 | "기준선 CVE 1건 패치 전후 검증" → "기준선 CVE 3~5건 규칙 자가 검증 통과" |
-| M8 전체 (F-801~F-810) | P2 |
+| M8 전체 (F-801~F-810) | **후속 범위** — feature-spec v0.4 부록 A 로 이동 (반영 완료) |
 | F-401 | 가설 생성 제거, S·G·S 초안(`sgs`) 추가 |
 | F-504 | 피드백 기반 재생성 포함 |
 | F-507 (신규, P0) | LLM 규칙 파라미터 초안 + 재생성(최대 3회), 실패 시 seed 채택 |

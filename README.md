@@ -1,6 +1,6 @@
 # aosp-1day-pipeline (먼잘귀)
 
-AOSP Framework / system_server 1-Day 취약점의 패치 기반 재현·원인 분석 자동화
+공개 패치 기반 AOSP 유사 취약점 탐지 — 패치 기반 규칙 생성 파이프라인
 
 가천대학교 P-실무프로젝트 팀 "먼잘귀(meonjalgwi)"의 프로젝트 리포지토리입니다.
 
@@ -14,38 +14,39 @@ AOSP Framework / system_server 1-Day 취약점의 패치 기반 재현·원인 �
 
 ## 프로젝트 개요
 
-AOSP Framework 또는 system_server 영역에서 공개 패치가 존재하는 1-Day 취약점(권한 검증 누락, 입력값 검증 오류, 잘못된 Intent/Binder 처리, 정보 노출·서비스 크래시 등)을 대상으로, CVE 번호 입력만으로 패치 기반 취약점 재현과 원인 분석을 자동화하는 멀티 에이전트 파이프라인을 만듭니다.
+공개된 AOSP 보안 패치를 입력하면, 패치가 고친 결함 구조(Source–Guard–Sink)를 **탐지 규칙으로 생성하고 패치 전·후 코드로 검증(차분 오라클)** 한 뒤, 같은 결함이 남아 있는 다른 AOSP 코드 후보를 찾아 근거와 함께 대시보드로 보여주는 도구를 만듭니다. 1-Day 패치 이후의 유사 결함 분석을 빠르게 하는 것이 목적입니다.
 
-대상 범위: 공개 패치가 존재하는 2023~2025년 AOSP Framework/system_server CVE
+- **지원 대상:** Android 보안 공지(2023~2025)에 AOSP 커밋 링크가 있는 패치 중 **Java(P0)·Kotlin(P1) 코드 변경으로 결함을 고친 것**. 템플릿에 없는 형식도 패치에서 규칙을 새로 생성·검증해 처리합니다 (모델 재학습이 아님).
+- **지원 대상 밖:** 네이티브(C/C++)·커널·벤더/비공개 수정, 리소스·설정만 바꾼 패치, 수정 지점을 분리할 수 없는 대규모 리팩터링 → 사유별 개수를 보고서 "한계"에 기록
+- **후속 범위 (이번 프로젝트 제외):** 동적 재현·패치 전후 실행 검증 (M8)
 
 ## 시스템 구성 (모듈)
 
 ```
-CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패턴 추출
-→ AOSP 유사 코드 스캔 → 후보 우선순위화 → 패치 전후 검증 → HTML/Markdown 보고서
+CVE/패치 입력 → 패치 분석(수정 유형 분류) → 진입점·Source 경로 분석 → 결함 구조 정리
+→ 탐지 규칙 생성 + 차분 오라클 검증 → AOSP 유사 코드 스캔 → 후보 선별·우선순위화 → 보고서·대시보드
 ```
 
-- **M1 Collector** — CVE/패치 커밋의 메타데이터·부모 커밋·diff·변경 파일을 JSON으로 저장
-- **M2 Patch Analyzer** — Tree-sitter로 변경 클래스·메서드·조건문·권한 검사·예외 처리 추출
-- **M3 Binder Path Analyzer** — AIDL ↔ 구현 클래스 연결, 외부 진입점부터 변경 함수까지 호출 경로
-- **M4 Root Cause Analyzer (AI)** — 패치 증거 기반 근본 원인·보안 불변식·발생 조건 생성
-- **M5 Pattern / Rule Generator** — source·guard·sink 패턴을 Tree-sitter Query 규칙으로 변환
-- **M6 Scanner / M7 Prioritizer** — `frameworks/base` 스캔 후 후보 점수화, 상위 10~20건 출력
-- **M8 Verifier** — Emulator 초기화 → APK 설치 → 테스트 → 로그 수집, 패치 전후 차등 판정
-- **M9 Reporter** — 근거 로그·diff를 포함한 HTML/Markdown 보고서
-- **M10 Web Dashboard (최종 산출물)** — 분석 결과·후보·검증·보고서를 보는 Streamlit 대시보드 (미리 생성된 JSON만 읽음)
-- **M11 Evaluation** — 정확도·탐지율·오탐률·시간 절감 평가
+- **M1 Collector** — CVE/패치 커밋의 메타데이터·부모 커밋·diff·전/후 소스 저장, 지원 대상 데이터셋 구축
+- **M2 Patch Analyzer** — 변경 위치·보안 검사 추출, 수정 유형(`fix_kind`) 분류, 기능 플래그 처리
+- **M3 Binder Path / Source** — Binder 진입점·앱 제공 객체(Source)에서 변경 코드까지 경로, 도달성 3값
+- **M4 Root Cause (LLM)** — 근거 기반 Source–Guard–Sink 초안 (권한형 트랙)
+- **M5 Pattern / Rule** — 템플릿 규칙(T1)·LLM 합성 규칙(T2) 생성, 차분 오라클(패치 전 탐지·후 미탐지·대조군 예산)로 채택
+- **M6 Scanner / M7 Prioritizer** — 스캔 스냅샷 전체 스캔, 오탐 필터·점수·LLM 질문 분해 검토, 상위 후보 출력
+- **M9 Reporter** — 근거 diff·한계를 포함한 HTML/Markdown/JSON 보고서
+- **M10 Web Dashboard (최종 산출물)** — 개요·취약 패턴·탐지 규칙·변종 후보·보고서 5개 탭, 후보 라벨 (미리 생성된 JSON 만 읽음)
+- **M11 Evaluation** — 규칙 채택률, Precision, 회고 검증, Vanir 베이스라인 비교
+- ~~M8 Verifier~~ — 후속 범위 (코드 뼈대만 유지)
 
-기능 상세는 [docs/feature-spec.md](docs/feature-spec.md) 참고.
+기능 상세는 [docs/feature-spec.md](docs/feature-spec.md), 설계는 [docs/design.md](docs/design.md) 참고.
 
 ## 진행 방식
 
-- 총 **8주** (10/26 ~ 12/21). 1주차에 범위·설계를 확정하고, 2~7주차에 모듈을 순서대로 구현, 8주차에 통합·평가·발표.
-- 담당
-  - @zv9uvr — Collector (M1)
-  - @gusdkcjs4 — Patch Analyst (M2 패치 분석 + M4 발생 조건 가설)
-  - @seojinn0713 — Harness (M8의 테스트 APK / instrumentation test 생성)
-  - 나머지 모듈은 추후 배정
+- 총 **8주** (10/26 ~ 12/21). 4주차까지 범위·설계·수집·패치 분석, 5~7주차 규칙 생성·스캔·선별·대시보드, 8주차 통합·평가·발표.
+- 담당 (제안, 구현 전 재확정)
+  - @zv9uvr (나연) — M1 Collector · dataset · 공통 모듈 · 대시보드 · 통합
+  - @gusdkcjs4 (현아) — M2 Patch Analyzer · M3 · M4 · M7
+  - @seojinn0713 (서진) — M5 Pattern/Rule · M6 Scanner · M11 Evaluation
 
 자세한 주차별 계획은 [docs/roadmap.md](docs/roadmap.md) 참고.
 
@@ -62,24 +63,24 @@ CVE/패치 입력 → 패치 분석 → Binder/AIDL 경로 분석 → 취약 패
 modules/
   m01-collector/          # M1. Collector
   m02-patch-analyzer/     # M2. Patch Analyzer
-  m03-binder-path/        # M3. Binder Path Analyzer
-  m04-root-cause/         # M4. Root Cause Analyzer
-  m05-pattern-generator/  # M5. Pattern / Rule Generator
+  m03-binder-path/        # M3. Binder Path / Source
+  m04-root-cause/         # M4. Root Cause
+  m05-pattern-generator/  # M5. Pattern / Rule
   m06-scanner/            # M6. Scanner
   m07-prioritizer/        # M7. Prioritizer
-  m08-verifier/           # M8. Verifier
+  m08-verifier/           # M8. Verifier — 후속 범위 (이번 프로젝트 제외)
   m09-reporter/           # M9. Reporter
   m10-dashboard/          # M10. Web Dashboard (최종 산출물)
   m11-evaluation/         # M11. Evaluation
 docs/
   roadmap.md        # 8주 계획
-  feature-spec.md   # 기능명세서
+  feature-spec.md   # 기능명세서 (v0.4)
   glossary.md       # 용어 정리 (M·P·F 번호, 기술 용어)
   design.md         # 상세 설계서 (모듈·클래스·메서드)
   architecture.md   # 시스템 구조도 (Mermaid) + 참고 연구·도구
   llm-verification.md  # LLM 사용·검증 구조와 근거 문헌
   walkthrough-cve-2023-40105.md  # 실제 CVE 한 건 관통 예시 (기준선 1순위)
-  scope-v2.3.md     # 범위 확장 제안: AOSP 공개 패치 전체, 3개 트랙, 위험 대응
-  novel-patterns.md # 처음 보는 형식 대응: 차분 오라클, T1 템플릿 → T2 열린 합성 → T3 탐색, 패턴 라이브러리
+  scope-v2.3.md     # 범위 확장: 지원 대상에 해당하는 AOSP 공개 패치, 3개 트랙, 위험 대응
+  novel-patterns.md # 패치 기반 규칙 생성 파이프라인: 차분 오라클, T1 템플릿 → T2 규칙 합성 → T3 탐색, 패턴 라이브러리
   limitations.md    # 한계와 대응 L1~L8, 라벨 판정 기준표, 책임 있는 공개 절차
 ```

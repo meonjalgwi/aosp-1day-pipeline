@@ -1,29 +1,14 @@
-# M8. Verifier — 패치 전후 동적 검증
+# M8. Verifier — 후속 범위 (이번 프로젝트 제외)
 
-- 주차: 2주(환경) · 7주
-- 담당: 테스트 생성(Harness, F-802) — 서진 ([@seojinn0713](https://github.com/seojinn0713)) / 실행·판정 — TBD
-- 기능명세: [docs/feature-spec.md](../../docs/feature-spec.md) F-801~F-810 (P0: F-801, F-803, F-804, F-807, F-809)
+> 11/11 피드백과 11/23 리뷰에 따라 **동적 재현·패치 전후 실행 검증은 이번 프로젝트의 산출물·평가·일정에서 제외**합니다.
+> 이 폴더와 코드 뼈대는 프로젝트 이후 확장할 때의 출발점으로만 남겨 둡니다. 이번 프로젝트에서 후보의 악용 가능성은 정적 근거 + 라벨 판정 기준표 + 사람 판정으로 다룹니다 ([docs/limitations.md](../../docs/limitations.md) L4).
 
-## 입력 / 출력
+## 남겨 둔 것
 
-- 입력: P0 `baselines/<CVE-ID>.tests.json`(사람 작성) / P1 `root_cause.json`(가설) + `call_path.json` → Harness → `test_cases.json`
-- 출력: `verification.json` + logcat
+- 코드 뼈대: [`aosp1day/stages/m08_harness.py`](../../aosp1day/stages/m08_harness.py) (`Harness`), [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py) (`Verifier`) — `PIPELINE` 에서 제외, `STANDALONE` 에만 등록
+- 스키마: `TestCase`, `ValueSpec`, `CallerSpec`, `ExpectedResult`, `Verification` ([`aosp1day/schemas.py`](../../aosp1day/schemas.py))
+- 예시 입력: [`baselines/example.tests.json`](../../baselines/example.tests.json)
 
-## 진행 상태
+## 후속 범위에서 다룰 내용 (참고)
 
-- [ ] Cuttlefish 환경 (11/8까지 부팅·adb·APK 설치·logcat, 안 되면 Emulator)
-- [ ] 기준선 CVE 1건 TestCase 작성 + Harness 형식 검증 (P0, F-807)
-- [ ] 공용 instrumentation APK (권한 변형별) + 파라미터 JSON 해석 (P0, F-809)
-- [ ] (Harness, P1) 가설 → 테스트 APK / instrumentation test 자동 생성 (Intent·Binder 호출 조합)
-- [ ] 초기화 → 설치 → 테스트 → logcat 수집 자동화
-- [ ] 취약·패치 버전 차등 판정
-- [ ] 실패 원인 분류
-
-## 설계 뼈대 (코드)
-
-- Harness (서진): [`aosp1day/stages/m08_harness.py`](../../aosp1day/stages/m08_harness.py) — 클래스 `Harness`, CLI `aosp1day harness <CVE-ID> [--tests 파일]`
-  - P0 (F-807): `baselines/<CVE-ID>.tests.json`(사람 작성, 예시 `baselines/example.tests.json`)을 검증해 `test_cases.json`으로 내보냄
-  - P1 (F-802): 위 파일이 없으면 `root_cause.json`(hypotheses) + `call_path.json`으로 자동 생성, 못 만든 가설은 `skipped`
-  - 테스트별 파라미터 `tests/<id>.json` 생성 → 공용 instrumentation APK가 읽음 (테스트별 APK 빌드 없음)
-- 실행·판정: [`aosp1day/stages/m08_verifier.py`](../../aosp1day/stages/m08_verifier.py) — 클래스 `Verifier`, CLI `aosp1day verify <CVE-ID>`
-  - 입력 `test_cases.json` → 출력 `verification.json`(`TestVerdict` 목록, 빌드 정보·logcat 경로 포함)
+이전 기능명세 v0.3.1 의 F-801~F-810 (가상 기기 초기화, 공용 instrumentation APK, 패치 전후 차등 판정 등) — [docs/feature-spec.md](../../docs/feature-spec.md) 부록 A
