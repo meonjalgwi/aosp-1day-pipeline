@@ -1,6 +1,6 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영)
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
@@ -9,6 +9,16 @@
 1. M8(Harness·Verifier)은 P0에서 빠진다. 코드와 스키마는 남기고 `PIPELINE`에서만 제외한다.
 2. M5에 LLM 규칙 파라미터 초안과, 자가 검증 실패 시 재생성 루프가 들어간다.
 3. M7에 오탐 필터와 LLM 후보 검토가, M11에 회고 검증이 들어간다.
+
+### v2.1 (11/23) — 실현 가능성 검토 반영
+
+| # | 문제 | 수정 | 위치 |
+| --- | --- | --- | --- |
+| R1 | 자가 검증이 "패치 전 탐지·후 미탐지"만 봐서, LLM이 규칙을 지나치게 넓혀도 통과한다 | 음성 대조군 예산(`control_hits`) 추가. LLM 시도가 예산을 넘으면 `TOO_BROAD` 로 **실패** 처리. M6 에서도 스캔 히트 예산을 넘으면 seed 규칙으로 되돌림 | §2.1 `RuleCheck`, §2.3 `RuleConfig`, §7.1·7.2, §8 |
+| R2 | 기존 검사의 **호출 조건만 바꾼** 패치는 패치 전 코드에도 Guard 호출이 있어 "Guard 누락" 규칙으로 전·후를 구분할 수 없다 | M2 에서 수정 유형(`fix_kind`)을 P0 로 판정하고 `ADDED_GUARD` 만 M3 이후로 넘김. 나머지는 범위 밖으로 기록 | §2.1 `PatchChange`, §4 |
+| R3 | Tree-sitter 근사 호출 그래프에서 해석 못 한 간선을 "경로 없음·Guard 없음"으로 처리하면 필터가 오탐·미탐을 만든다 | 도달성·상위 Guard 판정을 3값(`resolved`·`partial`·`unknown`)으로. `unknown` 은 탈락시키지 않고 점수만 낮춤 | §2.1 `Candidate`, §2.5 `callgraph`, §9 |
+| R4 | Guard 카탈로그에 강제력이 없는 `@RequiresPermission` 포함, `clearCallingIdentity` 이후 호출자 기반 검사도 Guard 로 인정 | `@RequiresPermission` 제거, `@EnforcePermission` 생성 헬퍼 호출 인식, identity 해제 구간 안의 호출자 기반 검사는 Guard 로 세지 않음 | §2.5 `security_apis` |
+| R5 | "판정은 결정적 절차" 원칙과 M7 LLM 재점수의 관계가 모호 | LLM 은 점수의 `review` 항만 바꾼다. 채택·필터·라벨은 절대 바꾸지 않는다고 명시 | §2.4, §9 |
 
 ---
 
@@ -43,6 +53,8 @@
 | M11 Evaluation | 정확도·탐지율·오탐률·시간 | + **회고 검증**(이후 ASB 패치와 후보 대조) | 제안서 평가 방법 |
 | 대시보드 | D-1·3·4·6·7·8·9 | D-8(동적 검증) P2, **D-5(규칙 검증)** 추가, 제안서 5개 탭에 매핑 | 제안서 산출물 |
 | P0 8번 | 기준선 CVE 1건 패치 전후 동적 검증 | 기준선 CVE 3~5건 **규칙 자가 검증** 통과 | M8 제외 |
+| M2 수정 유형 분류 | F-202 (P1) | **`fix_kind` P0**. `ADDED_GUARD` 만 이후 단계로 | v2.1 R2 |
+| 도달성·상위 Guard 판정 | 있음/없음 | **3값**(`resolved`·`partial`·`unknown`), `unknown` 은 감점만 | v2.1 R3 |
 
 ### 0.3 실행 순서
 
@@ -112,8 +124,11 @@ PR #30의 `ArtifactMeta`, `CodeRef`, `LlmProvenance`, `Evidence`, `Claim`, `Patc
 ```python
 # --- M2: 패치가 추가한 Guard와 Sink 후보를 변경 단위로 보관 -----------------
 @dataclass
-class PatchChange:                       # 기존 필드 유지 + 2개 추가
+class PatchChange:                       # 기존 필드 유지 + 3개 추가
     ...
+    fix_kind: str = ""
+        # [v2.1 R2] ADDED_GUARD | CONDITION_CHANGE | BYPASS | OTHER  (M2 classify_fix 가 결정)
+        # ADDED_GUARD 만 M3 이후로 넘어간다. 나머지는 범위 밖 사유로 보고서에 남는다.
     added_guards: list[Evidence] = field(default_factory=list)
         # side="after". claim = Guard 유형(PERMISSION|UID|PACKAGE|APPOPS|CROSS_USER),
         # snippet = 추가된 검사 코드. "패치가 추가한 Guard"의 근거.
@@ -154,7 +169,8 @@ class RuleCheck:                         # 기존 3개 필드 유지 + 추가
     patched_hits: int = 0
     passed: bool = False
     target_hit: bool = False             # [추가] before 히트 중 패치된 메서드가 있는가
-    noise: int = 0                       # [추가] before 에서 타깃 외 히트 수
+    noise: int = 0                       # [추가] before 에서 타깃 외 히트 수 (참고용. B 계열에선 진짜 변종일 수 있음)
+    control_hits: int = 0                # [v2.1 R1] 음성 대조군 히트 수: after 파일들에서 패치된 메서드를 뺀 히트
     errors: list[str] = field(default_factory=list)   # [추가] lint·컴파일 오류
 
 @dataclass
@@ -184,6 +200,7 @@ class ScoreReason:                       # 기존 필드 유지 + 추가
     sink_similarity: float = 0.0         # [추가] 같은 호출 1.0 / 같은 Sink 분류 0.6 / 정규식만 0.3
     path_length: int = 0                 # [추가] 진입점 → sink 메서드 호출 깊이
     other_guard_present: bool = False    # [추가] 요구 유형과 다른 검사가 경로에 있음
+    reachability: str = "resolved"       # [v2.1 R3] resolved | partial | unknown (Candidate.reachability 복사)
     review_verdict: str = ""             # [추가] likely | unlikely | unsure | ""
 
 @dataclass
@@ -216,7 +233,11 @@ class Candidate:                         # 기존 필드 유지 + 추가
     call_path: list[CodeRef] = field(default_factory=list)      # [추가] 진입점 → sink 메서드
     missing_guard: str = ""                                     # [추가] 요구 Guard 유형
     present_guards: list[Evidence] = field(default_factory=list)  # [추가]
-    filters: dict[str, str] = field(default_factory=dict)       # [추가] 필터명 → pass | 탈락 사유
+    filters: dict[str, str] = field(default_factory=dict)       # [추가] 필터명 → pass | unknown | 탈락 사유
+    reachability: str = "resolved"
+        # [v2.1 R3] 진입점 → sink 경로와 상위 caller 탐색이
+        # resolved = 해석 못 한 간선 없이 끝남 / partial = 경로는 찾았지만 주변에 unresolved 간선 있음 /
+        # unknown = 경로를 unresolved 간선 때문에 확정 못 함
     review: Optional[CandidateReview] = None                    # [추가] M7
     retro: Optional[RetroMatch] = None                          # [추가] M11
 
@@ -249,7 +270,9 @@ class Labels:
 @dataclass
 class RuleConfig:
     max_attempts: int = 3            # LLM 재생성 최대 횟수 (seed 제외)
-    max_noise: int = 5               # 초과하면 채택은 하되 tags 에 "broad"
+    max_noise: int = 5               # 초과하면 채택은 하되 tags 에 "broad" (참고용)
+    max_control_hits: int = 5        # [v2.1 R1] LLM 시도의 control_hits 가 넘으면 TOO_BROAD 실패
+    max_scan_hits: int = 50          # [v2.1 R1] M6 에서 패턴 하나의 Match 수가 넘으면 seed 로 되돌림
     security_apis: Path = Path("config/security_apis.yaml")
     sinks: Path = Path("config/sinks.yaml")
 
@@ -281,6 +304,8 @@ class Config:                        # 기존 필드 유지
 | `llm.py` | `get_client(config)` | `provider` 이름으로 구현체 반환 (기존 시그니처 유지) |
 
 LLM 출력은 항상 "번호로 고르기"를 우선한다. M4는 Guard·Sink 후보 번호를 고르고, M5는 카탈로그에 있는 API 이름만 쓸 수 있으며, M7은 제공된 줄 번호만 근거로 인정한다. 없는 메서드나 호출을 LLM이 지어내도 다음 단계로 넘어가지 못하게 하려는 장치다.
+
+**[v2.1 R5] LLM 이 결정하지 않는 것.** 규칙 채택(M5 `self_check` 통과 여부), 후보 탈락(M7 필터), 라벨(사람)은 코드나 사람만 정한다. LLM 결과가 바꿀 수 있는 값은 M4 의 S·G·S 선택(코드 대조 후), M5 의 규칙 파라미터 초안(검증 통과 시에만 사용), M7 의 `review_verdict`(점수의 `review` 항, 가중치 0.2) 세 가지뿐이다. 따라서 LLM 을 꺼도(`--no-review`, seed 만 사용) 파이프라인은 같은 형식의 결과를 낸다.
 
 ### 2.5 `analysis/` — 공유 Tree-sitter 도구
 
@@ -320,7 +345,8 @@ class JavaAst:
 PERMISSION:
   calls: [enforceCallingOrSelfPermission, enforceCallingPermission, checkCallingOrSelfPermission,
           checkCallingPermission, enforcePermission, checkPermission]
-  annotations: [EnforcePermission, RequiresPermission]
+  call_regex: '\w+_enforcePermission'     # [v2.1 R4] @EnforcePermission 이 생성한 헬퍼 호출
+  annotations: [EnforcePermission]        # [v2.1 R4] RequiresPermission 은 문서용(강제 안 함)이라 제외
   arg_regex: '(android\.)?Manifest\.permission\.\w+|"android\.permission\.\w+"'
 UID:
   calls: [isSystemUid, enforceSystemOrRoot, isCallerSystem]
@@ -333,6 +359,13 @@ APPOPS:
 CROSS_USER:
   calls: [handleIncomingUser, enforceCrossUserPermission]
   arg_regex: 'INTERACT_ACROSS_USERS(_FULL)?'
+  cond_regex: 'UserHandle\.getCallingUserId\(\)|getCallingUserId\(\)'   # [v2.1 R4] if (userId != 호출자) throw
+identity_dependent:       # [v2.1 R4] 호출자 신원(Binder calling uid/pid)에 기대는 검사.
+  calls: [enforceCallingPermission, checkCallingPermission, enforceCallingOrSelfPermission,
+          checkCallingOrSelfPermission, handleIncomingUser, isCallerSystem]
+  cond_regex: 'Binder\.getCalling(Uid|Pid)\(\)|getCallingUserId\(\)'
+  # clearCallingIdentity ~ restoreCallingIdentity 구간 안에 있으면 호출자가 system 으로 바뀌어
+  # 항상 통과하므로 Guard 로 세지 않는다. (구간 밖에서 미리 읽어 둔 callingUid 변수 비교는 인정)
 pattern_type:            # Guard 유형 → 패턴 유형
   PERMISSION: missing_permission
   APPOPS: missing_permission
@@ -347,7 +380,8 @@ pattern_type:            # Guard 유형 → 패턴 유형
 | `match_call(c: CallNode) -> str \| None` | Guard 유형 또는 None |
 | `match_if(i: IfNode) -> str \| None` | 조건식이 UID·CROSS_USER 비교이고 then 이 throw/return 이면 유형 |
 | `match_annotation(name: str) -> str \| None` | |
-| `guards_in(ast, m, before_line=None) -> list[tuple[str, int, str]]` | 메서드 안 Guard 전부 (유형, 줄, 코드) |
+| `guards_in(ast, m, before_line=None) -> list[tuple[str, int, str]]` | 메서드 안 Guard 전부 (유형, 줄, 코드). **[v2.1 R4]** `identity_dependent` 이고 `ast.clear_identity_ranges(m)` 안에 있는 것은 빼고, 대신 `ignored_guards` 로 따로 반환 |
+| `is_identity_dependent(c_or_if) -> bool` | **[v2.1 R4]** |
 | `pattern_type_of(guard_type) -> str` | |
 | `api_names(types) -> set[str]` | M5 lint 에서 LLM이 쓴 API 이름 검사 |
 
@@ -418,7 +452,11 @@ class CodeIndexer:
 | `callers(fqn) -> list[tuple[str, int]]` | |
 | `paths_from(fqn, depth) -> Iterator[list[str]]` | DFS, 순환 방지 |
 | `paths_to(fqn, depth) -> Iterator[list[str]]` | |
+| `unresolved_callers(fqn) -> list[tuple[str, int]]` | **[v2.1 R3]** 수신자를 해석 못 했지만 **이름·인자 수가 같은** 호출 지점 (이름 기반 근사). 인터페이스·Handler·람다 경유 호출이 여기 걸린다 |
+| `reach(entries, fqn, depth) -> Reach` | **[v2.1 R3]** `Reach(status, path, unresolved_edges)`. 해석된 간선만으로 경로가 있고 주변에 unresolved 없음 → `resolved`, 경로는 있으나 경로 위 메서드에 `unresolved_callers` 있음 → `partial`, 해석된 경로는 없고 `unresolved_callers` 만 있음 → `unknown`, 둘 다 없음 → `none` |
 | `unresolved_ratio() -> float` | |
+
+**[v2.1 R3] 3값 원칙.** 해석 못 한 간선을 "경로 없음"이나 "Guard 없음"으로 바꾸지 않는다. `unknown` 은 필터에서 탈락시키지 않고 점수에서만 감점하며, 대시보드에 그대로 표시한다. 이 근사가 막히면(예: `unresolved_ratio` 가 0.5 이상) 대안은 Joern 같은 CPG 도구지만, 일정상 최후의 수단으로만 검토한다.
 
 ---
 
@@ -473,12 +511,24 @@ class CodeIndexer:
 | `extract_changed_units(hunk, before_src, after_src) -> PatchChange` | 유지 | `JavaAst.method_at` 으로 클래스·메서드 식별 (F-201) |
 | `classify_change(change) -> str` | 유지 (P1) | permission_check / input_validation / condition / exception / other (F-202) |
 | `detect_permission_apis(change) -> list[str]` | 유지 | 추가·삭제된 Guard API 이름 (F-203). `SecurityApiCatalog` 사용 |
-| `find_added_guards(change, after_ast) -> list[Evidence]` | **추가** | after 메서드에서 `+` 줄에 걸친 호출·if·어노테이션 중 카탈로그 일치 → `Evidence(side="after", claim=<유형>)` |
+| `classify_fix(change, before_ast, after_ast) -> str` | **추가 (P0, v2.1 R2)** | 아래 규칙으로 `fix_kind` 결정. `find_added_guards` 보다 먼저 실행 |
+| `find_added_guards(change, after_ast) -> list[Evidence]` | **추가** | after 메서드에서 `+` 줄에 걸친 호출·if·어노테이션 중 카탈로그 일치 → `Evidence(side="after", claim=<유형>)`. **`fix_kind == "ADDED_GUARD"` 일 때만** 채운다 |
 | `find_sink_candidates(change, after_ast) -> list[Evidence]` | **추가** | Guard 줄 이후 호출을 `SinkCatalog.rank` 로 정렬, 최대 8개. Sink 가 같은 파일의 private 메서드 안이면 한 단계 따라감 |
 | `compare_with_baseline(analysis, baseline_path) -> float` | 유지 (P1) | 변경 메서드 일치율 (F-204) |
 | `load_baseline(path) -> Baseline` | 유지 | |
 
 `added_guards` 가 빈 변경은 "Guard를 추가하지 않은 패치"(입력 길이 검증 등)라 이후 단계에서 빠진다. 이것이 도구 범위 밖이라는 근거로 보고서에 남는다.
+
+**[v2.1 R2] `classify_fix` 판정 규칙.** 변경 메서드마다 `G_b = guards_in(before)`, `G_a = guards_in(after)` 의 **유형 집합**을 비교한다.
+
+| 순서 | 조건 | `fix_kind` | 이후 |
+| --- | --- | --- | --- |
+| 1 | diff 가 `writeToParcel`·`createFromParcel`·`readFromParcel`·`Parcel`/`Bundle` 읽기·쓰기 API 를 주로 바꿈 | `BYPASS` | 범위 밖 (Parcel·Bundle 불일치 계열. P2 확장 후보) |
+| 2 | `G_a − G_b` 가 비어 있지 않음 (패치 후에만 있는 Guard 유형) | `ADDED_GUARD` | M3 이후 진행 |
+| 3 | `G_a == G_b` 이고 비어 있지 않음, 그런데 Guard 가 걸린 `if` 조건·인자·위치가 바뀜 | `CONDITION_CHANGE` | 범위 밖. 패치 전 코드에도 Guard 호출이 있어 "누락" 규칙으로 전·후를 구분할 수 없음 |
+| 4 | 그 외 | `OTHER` | 범위 밖 |
+
+같은 유형의 Guard 가 before 에 **다른 경로에만** 있고 after 에 패치된 경로로 옮겨진 경우는 2번(`ADDED_GUARD`)으로 본다(메서드 단위 비교이므로 자연히 그렇게 된다). 판정 결과와 이유는 `PatchChange.notes` 에 남기고, 대시보드 개요 탭과 보고서 "한계"에 "이 CVE 는 조건 변경형이라 탐지 범위 밖" 식으로 보여준다. 기준선 CVE 를 고를 때 이 판정을 먼저 돌려 `ADDED_GUARD` 인 것만 쓴다(§14).
 
 ---
 
@@ -536,8 +586,8 @@ class CodeIndexer:
 | `seed_params(pattern) -> RuleParams` | **추가** | **LLM 없이** 패턴을 그대로 옮김. sink = 정확한 호출명, guard = 같은 유형의 카탈로그 API 전체 |
 | `draft_params(client, pattern, prev, feedback) -> tuple[RuleParams, LlmProvenance]` | **추가** | `prompts/rule_params.md`: 파라미터 의미, 예시 2개, 이전 파라미터, 피드백. 일반화 방향을 고정한다 — sink 는 같은 의미의 호출 계열까지(`putString` → `put\w*`), guard 는 같은 유형의 다른 API 허용, 변수·필드명 고정 금지 |
 | `to_rule(pattern, params, rules_dir) -> Path` | 유지 (시그니처에 params 추가) | `templates/<type>.scm` 복사 + `params` 를 `.yaml` 로 저장 (F-503) |
-| `self_check(rule_path, analysis, store_dir) -> RuleCheck` | 유지 | before·after 파일에 `RuleMatcher.match_file`. `target_hit` = before 히트 중 패치된 메서드 존재, `passed = target_hit and 패치된 메서드의 after 히트 0` (F-504) |
-| `feedback(check, pattern) -> str` | **추가** | 우선순위 `INVALID` → `MISSED_BEFORE` → `HIT_AFTER` → `TOO_BROAD`, 문제 히트 최대 5개 첨부 |
+| `self_check(rule_path, analysis, store_dir, origin) -> RuleCheck` | 유지 (v2.1 변경) | before·after 파일에 `RuleMatcher.match_file`. `target_hit` = before 히트 중 패치된 메서드 존재. `control_hits` = **after** 파일들의 히트 중 패치된 메서드가 아닌 것의 수. `passed = target_hit and 패치된 메서드의 after 히트 0 and (origin == "seed" or control_hits <= max_control_hits)` (F-504) |
+| `feedback(check, pattern) -> str` | **추가** | 우선순위 `INVALID` → `MISSED_BEFORE` → `HIT_AFTER` → `TOO_BROAD`, 문제 히트 최대 5개 첨부. `TOO_BROAD` 에는 대조군 히트 메서드 이름을 붙여 "이 메서드들은 잡지 않도록 좁혀라" 로 전달 |
 | `adopt_rule(ctx, client, pattern) -> Pattern` | **추가** | 아래 루프 |
 | `split_overfit(pattern) -> Pattern` | 유지 (P1) | (F-505) |
 
@@ -546,7 +596,11 @@ class CodeIndexer:
 1. 시도 0: `seed_params` 로 규칙을 만들고 `self_check`. 실패하면 패턴 자체가 잘못된 것이므로 `adopted=False` 로 끝낸다.
 2. 시도 1~`max_attempts`: `draft_params(이전 파라미터, 피드백)` → `spec.lint` → `to_rule` → `self_check`. 처음 통과한 것을 채택하고 `llm_generalized` 태그를 단다.
 3. LLM 시도가 모두 실패하면 seed 를 채택하고 `seed_only` 태그를 단다. seed 는 정확한 호출명에 묶여 있어 변종 탐지 범위가 좁다는 뜻이다.
-4. 채택 규칙의 `noise > max_noise` 면 `broad` 태그를 추가한다.
+4. 채택 규칙의 `noise > max_noise` 면 `broad` 태그를 추가한다(참고용).
+
+**[v2.1 R1] 왜 음성 대조군인가.** "패치 전 탐지·후 미탐지"만으로는 규칙의 **넓이**를 제한할 수 없다. 예를 들어 "Guard 없이 `put\w*` 를 부르는 모든 메서드"로 넓혀도 패치된 메서드는 after 에 Guard 가 있으니 통과한다. 그래서 after 파일(모든 수정 위치에 Guard 가 들어간 상태)에서 패치된 메서드 **밖** 히트 수에 예산을 둔다. 대조군 히트가 진짜 변종일 수도 있으므로 0 이 아니라 예산(`max_control_hits`)으로 두고, 히트 목록은 `RuleCheck` 와 대시보드 D-5 에 남긴다. seed 는 정확한 호출명이라 넓어질 수 없으므로 예산을 적용하지 않는다.
+
+`before` 쪽 `noise` 는 벌점으로 쓰지 않는다. B 계열(한 CVE 가 여러 위치를 고친 경우)에서는 before 의 타깃 외 히트가 바로 다른 수정 위치, 즉 정답이기 때문이다.
 
 모든 시도는 `Pattern.attempts` 에 남아 대시보드 D-5 에서 보인다. 규칙 채택률 = `adopted 패턴 수 / 전체 패턴 수`.
 
@@ -597,7 +651,8 @@ class CodeIndexer:
 | `aosp_revision(aosp_root) -> str` | 유지 | `config.scan.aosp_revision` 또는 `git rev-parse HEAD` |
 | `load_index(ctx) -> tuple[CodeIndex, CallGraph]` | **추가** | `CodeIndexer.load_or_build` + `StubMap` 으로 `is_entry` 표시 + `CallGraph.build` |
 | `scan(pattern, aosp_root) -> CandidateSet` | 유지 | `RuleMatcher.match_index` → `to_candidate` (F-601) |
-| `to_candidate(m: Match, pattern, index) -> Candidate` | **추가** | `location`(sink, side="aosp"), `matched["source"/"sink"]`, `call_path`, `missing_guard`, `present_guards` 채움. `public=False` |
+| `enforce_budget(pattern, matches) -> tuple[RuleParams, list[Match]]` | **추가 (v2.1 R1)** | `llm_generalized` 패턴의 Match 수가 `max_scan_hits` 를 넘으면 seed 파라미터로 다시 스캔하고 `tags` 에 `broad_fallback` 추가. seed 도 넘으면 그대로 두고 `stats` 에 경고 |
+| `to_candidate(m: Match, pattern, index) -> Candidate` | **추가** | `location`(sink, side="aosp"), `matched["source"/"sink"]`, `call_path`, `missing_guard`, `present_guards`, **`reachability`**(`CallGraph.reach` 결과) 채움. `public=False` |
 | `exclude_origin(cands, pattern, analysis) -> list[Candidate]` | **추가** | 원본 CVE 가 고친 메서드와 같은 FQN 은 제외. 스캔 리비전이 패치 이전이면 제외하지 않고 `notes="origin"` (통합 테스트용) |
 | `dedup(candidates) -> CandidateSet` | 유지 (P1) | 같은 sink 메서드·같은 원인 병합 (F-602) |
 | `scan_incremental(pattern, subdir) -> CandidateSet` | 유지 (P2) | (F-603) |
@@ -621,13 +676,13 @@ class CodeIndexer:
 | `rank(candidates, top_n, weights) -> RankedCandidates` | 유지 | (F-702) |
 | `apply_label(candidate, label) -> Candidate` | 유지 (P1) | `labels.json` 에서 읽어 반영 (F-703) |
 
-필터 (`stages/m07_filters.py`, 시그니처 `(cand, index, cg, config) -> str` — `"pass"` 또는 탈락 사유):
+필터 (`stages/m07_filters.py`, 시그니처 `(cand, index, cg, config) -> str` — `"pass"`, `"unknown"`, 또는 탈락 사유):
 
-| 함수 | 탈락 조건 |
-| --- | --- |
-| `f_guard_in_callers` | `paths_to(진입점, caller_depth)` 위 메서드에 요구 유형 Guard 있음 |
-| `f_unreachable` | sink 메서드까지 가는 진입점 경로 없음 |
-| `f_annotation_guard` | 진입점에 `@EnforcePermission`·`@RequiresPermission` |
+| 함수 | 탈락 조건 | `unknown` (탈락 안 함, v2.1 R3) |
+| --- | --- | --- |
+| `f_guard_in_callers` | 해석된 상위 caller(`paths_to`)에 요구 유형 Guard 있음 | 해석된 caller 에는 없지만 `unresolved_callers` 가 있음 |
+| `f_unreachable` | `reach(...).status == "none"` | `reach(...).status == "unknown"` |
+| `f_annotation_guard` | 진입점에 `@EnforcePermission` (v2.1 R4: `@RequiresPermission` 은 강제력이 없어 제외) | — |
 | `f_service_gate` | 같은 Stub 의 `onTransact` 오버라이드나 공통 헬퍼가 모든 진입점을 검사 |
 | `f_debug_entry` | `dump`, `onShellCommand` 등 셸·덤프 전용 |
 
@@ -635,12 +690,14 @@ class CodeIndexer:
 
 ```
 score = w.sink_similarity × sink_similarity
-      + w.path            × {0: 1.0, 1: 0.7, 2: 0.4}[path_length]
-      + w.guard_absence   × (0.4 if other_guard_present else 1.0)
+      + w.path            × {0: 1.0, 1: 0.7, 2: 0.4}[path_length] × conf[reachability]
+      + w.guard_absence   × (0.4 if other_guard_present else 1.0) × conf[reachability]
       + w.review          × {likely: 1.0, unsure: 0.5, unlikely: 0.0, "": 0.5}[review_verdict]
+
+conf = {resolved: 1.0, partial: 0.7, unknown: 0.4}     # [v2.1 R3]
 ```
 
-LLM 검토 전 점수로 상위 `review_top_k` 를 고르고, 검토 후 다시 점수를 매긴다. 가중치는 `config.scan.weights` 에서 오고 `RankedCandidates.weights` 에 기록된다(재현용). 초기값은 회고 검증 세트로 조정한다.
+LLM 검토 전 점수로 상위 `review_top_k` 를 고르고, 검토 후 다시 점수를 매긴다. **[v2.1 R5]** LLM 검토가 바꾸는 것은 `review` 항뿐이다. `unlikely` 라도 후보를 지우거나 필터 결과·라벨을 바꾸지 않으며, 검토 결과는 항상 `inferred` 배지와 함께 보인다. `reachability == "unknown"` 후보는 LLM 검토 프롬프트의 "도달 가능한가" 질문에 unresolved 호출 지점 목록을 함께 넣는다(사람이 판단할 근거를 모으는 용도). 가중치는 `config.scan.weights` 에서 오고 `RankedCandidates.weights` 에 기록된다(재현용). 초기값은 회고 검증 세트로 조정한다.
 
 ---
 
@@ -750,16 +807,23 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 | 7주 (12/8~12/14) | 대시보드 탭 4~5·라벨, M9 | M7 `review`·`ground_review`·점수 | M11 회고 검증·지표 |
 | 8주 (12/15~12/21) | 통합·발표 | 후보 수동 검토 | 평가 정리, (선택) 상위 후보 재현 |
 
+**[v2.1] 5주차 마일스톤 — 수직 관통(vertical slice).** 5주 끝(11/30)까지 기준선 CVE **1건**을 파일 모드로 `collect → analyze → binder-path → root-cause → pattern` 까지 한 번 통과시킨다. 품질은 낮아도 된다(M4 는 LLM 대신 0번 후보 고정, M3 는 같은 클래스 안만). 목적은 `classify_fix`(R2)·`control_hits`(R1)·`unresolved_ratio`(R3) 문제가 6주차 인덱스 작업 전에 드러나게 하는 것이다. 일정이 밀리면 M9 HTML·영문판과 M8 부터 덜어낸다.
+
+**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). 보드 7번 표 기준 1순위는 CVE-2024-31312, CVE-2025-48549 이고, CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
+
 테스트 (`tests/`, pytest):
 
 | 대상 | 방식 | 통과 기준 |
 | --- | --- | --- |
 | `analysis/javaast` | 작은 Java 문자열 | 메서드·호출·if·clearCallingIdentity 범위 정확 |
-| `security_apis` | 카탈로그별 양성·음성 예 | 유형 분류 정확 |
+| `security_apis` | 카탈로그별 양성·음성 예 | 유형 분류 정확. `clearCallingIdentity` 구간 안의 `enforceCallingPermission` 은 Guard 아님, `@RequiresPermission` 은 Guard 아님 (R4) |
+| M2 `classify_fix` | 작은 before/after 쌍 4종 | Guard 신규 추가 → `ADDED_GUARD`, 기존 검사의 if 조건만 변경 → `CONDITION_CHANGE`, Parcel 읽기·쓰기 변경 → `BYPASS` (R2) |
+| `callgraph.reach` | 인터페이스 경유·Handler 경유 호출이 있는 Java 문자열 | 해당 경로가 `none` 이 아니라 `unknown`/`partial` (R3) |
 | M1 | `tests/fixtures/<CVE>/` 에 Gitiles 응답 고정 (네트워크 모킹) | 커밋·파일·hunk 수 일치, 캐시 재사용 |
 | M2 | 기준선 CVE | `added_guards` 유형이 `baselines` 정답과 일치 |
 | M4 | LLM 응답 fixture 고정 | 범위 밖 번호·없는 줄은 버려짐 |
 | M5 | 기준선 CVE 전부 | seed 규칙 `passed=True` |
+| M5 대조군 | 일부러 넓힌 파라미터(`sink_calls: ["\\w+"]`) | `TOO_BROAD` 로 실패 (R1) |
 | matcher | 파일 모드 vs 인덱스 모드 | 같은 파일에서 같은 Match |
 | M6 | 패치 이전 리비전 스캔 | 원본 취약 메서드가 후보에 포함 (`notes="origin"`) |
 | M7 | 필터별 양성·음성 예 | 사유 기록 |
@@ -778,6 +842,9 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 | F-704 (신규, P0) | LLM 후보 검토 (상위 K, `inferred`, 근거 대조) |
 | F-705 (신규, P0) | 오탐 필터 5종, 탈락 사유 기록 |
 | F-1106 (신규, P1) | 회고 검증 |
+| F-202 | P1 → **P0**, `classify_fix`(`fix_kind`)로 대체 (v2.1 R2) |
+| F-504 | 음성 대조군 예산(`control_hits`) 포함 (v2.1 R1) |
+| F-705 | 필터 결과에 `unknown` 추가, `@RequiresPermission` 제외 (v2.1 R3·R4) |
 | D-5 (신규, P0) | 규칙·자가 검증 화면 |
 | D-8 | P2 |
 
@@ -785,6 +852,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 
 - 스캔할 `aosp_revision` 과 회고 검증용 과거 리비전
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
-- 기준선 CVE 3~5건 선정
+- 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
+- `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
 - 담당 재확정
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
