@@ -1,6 +1,6 @@
 # 상세 설계서 v2 — 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영)
+> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): AOSP 공개 패치 전체로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 새 형식 대응 → [novel-patterns.md](novel-patterns.md) · v2.4: 한계 대응 → [limitations.md](limitations.md))
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
@@ -19,6 +19,19 @@
 | R3 | Tree-sitter 근사 호출 그래프에서 해석 못 한 간선을 "경로 없음·Guard 없음"으로 처리하면 필터가 오탐·미탐을 만든다 | 도달성·상위 Guard 판정을 3값(`resolved`·`partial`·`unknown`)으로. `unknown` 은 탈락시키지 않고 점수만 낮춤 | §2.1 `Candidate`, §2.5 `callgraph`, §9 |
 | R4 | Guard 카탈로그에 강제력이 없는 `@RequiresPermission` 포함, `clearCallingIdentity` 이후 호출자 기반 검사도 Guard 로 인정 | `@RequiresPermission` 제거, `@EnforcePermission` 생성 헬퍼 호출 인식, identity 해제 구간 안의 호출자 기반 검사는 Guard 로 세지 않음 | §2.5 `security_apis` |
 | R5 | "판정은 결정적 절차" 원칙과 M7 LLM 재점수의 관계가 모호 | LLM 은 점수의 `review` 항만 바꾼다. 채택·필터·라벨은 절대 바꾸지 않는다고 명시 | §2.4, §9 |
+
+### v2.4 (11/23) — 한계 대응 반영 ([limitations.md](limitations.md))
+
+| # | 한계 | 설계 반영 | 위치 |
+| --- | --- | --- | --- |
+| L1 | AOSP 소스가 2026년부터 연 2회(2·4분기)만 공개, 개발은 내부 브랜치 | 스캔 기준 = 최신 공개 릴리스 + 이후 보안 공지 패치 적용본(`scan_snapshot`). 보고 전 이후 공지와 대조해 이미 고쳐진 후보는 `superseded` | §2.1 `Candidate`, §2.3 `ScanConfig`, §8 |
+| L2 | 기능 플래그(aconfig)로 감싼 패치 | M2 가 플래그 조건을 감지해 "플래그 켜짐" 기준 실효 after 뷰를 만들고, 오라클·대조군은 그 뷰로 계산. 후보에 `flag_gated` 배지 | §2.1 `PatchChange`, §4, §7 |
+| L3 | LLM 이 이후 패치를 학습했을 가능성 (시간 누수) | 회고 검증 주 결과는 LLM 끔, LLM 켠 결과는 별도 표기, 모델 학습 시점 기록 | §11 |
+| L4 | 정적 후보 ≠ 확정 취약점, 라벨 신뢰도 | 라벨 판정 기준표, 상위 후보 2인 독립 라벨 + κ, 결과는 "후보" 로 표현 | §11, §12 |
+| L5 | 미패치 결함 발견 시 절차 없음 | 책임 있는 공개 절차 | §17 |
+| L6 | 네이티브·커널·비공개 수정·리소스 전용 패치·다중 브랜치 커밋 | `dataset` 이 범위 밖 사유별 개수 집계, M1 이 Change-Id 로 같은 수정 묶음 | §3 |
+| L7 | 제안서의 베이스라인 비교가 일정에 없음 | Vanir 를 베이스라인으로 실행해 비교 (직접 구현 안 함) | §11 |
+| L8 | 시험 기간과 5주 작업 증가 | 팀 일정 반영 재배분, 줄이는 순서 고정 | §14, §16 |
 
 ---
 
@@ -55,6 +68,7 @@
 | P0 8번 | 기준선 CVE 1건 패치 전후 동적 검증 | 기준선 CVE 3~5건 **규칙 자가 검증** 통과 | M8 제외 |
 | M2 수정 유형 분류 | F-202 (P1) | **`fix_kind` P0**. `ADDED_GUARD` 만 이후 단계로 | v2.1 R2 |
 | 도달성·상위 Guard 판정 | 있음/없음 | **3값**(`resolved`·`partial`·`unknown`), `unknown` 은 감점만 | v2.1 R3 |
+| 대상 범위 (v2.3 제안) | system_server 권한 검사 누락 | **AOSP 공개 패치 전체**, 3개 트랙(A 권한형 + URI_USER · B 검사형 · C API 교체형), Source 에 `APP_OBJECT` 추가 | [scope-v2.3.md](scope-v2.3.md) |
 
 ### 0.3 실행 순서
 
@@ -134,6 +148,8 @@ class PatchChange:                       # 기존 필드 유지 + 3개 추가
         # snippet = 추가된 검사 코드. "패치가 추가한 Guard"의 근거.
     sink_candidates: list[Evidence] = field(default_factory=list)
         # side="after". Guard 뒤에 오는 민감 호출 후보 (우선순위순, 최대 8개)
+    flag_gated: list[str] = field(default_factory=list)
+        # [v2.4 L2] 수정 코드를 감싼 기능 플래그 조건 (예: "Flags.fixAvatarCrossUserLeak()"). 비면 플래그 없음
 
 # --- M4: S·G·S 초안 -----------------------------------------------------------
 @dataclass
@@ -240,6 +256,10 @@ class Candidate:                         # 기존 필드 유지 + 추가
         # unknown = 경로를 unresolved 간선 때문에 확정 못 함
     review: Optional[CandidateReview] = None                    # [추가] M7
     retro: Optional[RetroMatch] = None                          # [추가] M11
+    scan_snapshot: str = ""
+        # [v2.4 L1] 스캔 기준. 예: "android-latest-release@2026-Q2 + ASB 2026-07~11"
+    status: str = "open"                # [v2.4 L1] open | superseded (이후 공지에서 이미 수정) | reported (VRP 신고)
+    flag_gated: bool = False            # [v2.4 L2] 후보 경로가 기능 플래그 분기에 걸림
 
 @dataclass
 class Labels:
@@ -278,7 +298,10 @@ class RuleConfig:
 
 @dataclass
 class ScanConfig:
-    aosp_revision: str = ""          # 스캔할 frameworks/base 커밋·태그. 비면 aosp_root HEAD
+    aosp_revision: str = "android-latest-release"
+        # [v2.4 L1] 스캔 기준 브랜치·태그. 2026년부터 aosp-main 대신 최신 공개 릴리스
+    apply_bulletins_since: str = ""   # [v2.4 L1] 이 월 이후 보안 공지 패치를 스냅샷에 적용 (예: "2026-07")
+    assume_flags_enabled: bool = True # [v2.4 L2] 플래그 분기는 켜진 쪽을 실효 코드로 본다
     index_cache: Path = Path("output/_index")
     top_n: int = 20                  # F-702
     review_top_k: int = 20           # F-704 LLM 검토 대상 수
@@ -306,6 +329,8 @@ class Config:                        # 기존 필드 유지
 LLM 출력은 항상 "번호로 고르기"를 우선한다. M4는 Guard·Sink 후보 번호를 고르고, M5는 카탈로그에 있는 API 이름만 쓸 수 있으며, M7은 제공된 줄 번호만 근거로 인정한다. 없는 메서드나 호출을 LLM이 지어내도 다음 단계로 넘어가지 못하게 하려는 장치다.
 
 **[v2.1 R5] LLM 이 결정하지 않는 것.** 규칙 채택(M5 `self_check` 통과 여부), 후보 탈락(M7 필터), 라벨(사람)은 코드나 사람만 정한다. LLM 결과가 바꿀 수 있는 값은 M4 의 S·G·S 선택(코드 대조 후), M5 의 규칙 파라미터 초안(검증 통과 시에만 사용), M7 의 `review_verdict`(점수의 `review` 항, 가중치 0.2) 세 가지뿐이다. 따라서 LLM 을 꺼도(`--no-review`, seed 만 사용) 파이프라인은 같은 형식의 결과를 낸다.
+
+**[v2.2] LLM 검증 계층.** 호출 지점별 검증 계층(M4 표본 일치도, M7 질문 분해·`derive_verdict`·교차 모델 비판), 재현성·호출 상한, LLM 효과 비교 실험과 근거 문헌은 [llm-verification.md](llm-verification.md)에 둔다. 이에 따른 스키마·설정 추가분(`SgsDraft.agreement`, `ReviewAnswer`, `Critique`, `CandidateReview.answers`, `LlmConfig.consistency_samples`·`critic_*`·`max_calls_per_cve`)은 그 문서 6절을 따른다. 우선순위: 질문 분해·근거 대조·코드 판정은 **P0**, 표본 일치도·비판자·비교 실험은 **P1**, 라벨 기억은 **P2**.
 
 ### 2.5 `analysis/` — 공유 Tree-sitter 도구
 
@@ -472,6 +497,7 @@ class CodeIndexer:
 | `fetch_patch_metadata(commit_url) -> PatchCommit` | 유지 | Gitiles `?format=JSON`: parent, message, authored_at, changed_files (F-103) |
 | `save_sources(commit, store)` | 유지 | diff 와 변경 `.java` 의 before(parent)·after 원본 저장, 경로 기록 (F-104) |
 | `handle_edge_cases(source, record)` | 유지 (P1) | 깨진 링크, 비공개 버그, 여러 브랜치 커밋 → `notes` (F-105) |
+| `group_by_change_id(commits) -> list[list[PatchCommit]]` | **추가 (v2.4 L6)** | 커밋 메시지의 `Change-Id`·`Merged-In` 으로 브랜치별 같은 수정을 묶고 대표 커밋 1개로 분석 |
 | `is_cached(ctx) -> bool` | 유지 | `Store.has_all` 로 diff·before·after 실제 확인 (F-106) |
 | `in_scope(path) -> bool` | **추가** | `config.scan_paths` 매칭, test 경로 제외 |
 
@@ -513,6 +539,8 @@ class CodeIndexer:
 | `detect_permission_apis(change) -> list[str]` | 유지 | 추가·삭제된 Guard API 이름 (F-203). `SecurityApiCatalog` 사용 |
 | `classify_fix(change, before_ast, after_ast) -> str` | **추가 (P0, v2.1 R2)** | 아래 규칙으로 `fix_kind` 결정. `find_added_guards` 보다 먼저 실행 |
 | `find_added_guards(change, after_ast) -> list[Evidence]` | **추가** | after 메서드에서 `+` 줄에 걸친 호출·if·어노테이션 중 카탈로그 일치 → `Evidence(side="after", claim=<유형>)`. **`fix_kind == "ADDED_GUARD"` 일 때만** 채운다 |
+| `detect_flag_gates(change, after_ast) -> list[str]` | **추가 (P0, v2.4 L2)** | + 줄을 감싼 `if (Flags.xxx())`·`android.*.flags.*` 조건 탐지 → `flag_gated` |
+| `effective_after(after_ast, flags) -> JavaAst` | **추가 (P0, v2.4 L2)** | 플래그 조건을 참으로 두고 else 쪽 경로를 뺀 실효 after 뷰. `classify_fix`·M5 오라클·대조군이 이 뷰를 쓴다 |
 | `find_sink_candidates(change, after_ast) -> list[Evidence]` | **추가** | Guard 줄 이후 호출을 `SinkCatalog.rank` 로 정렬, 최대 8개. Sink 가 같은 파일의 private 메서드 안이면 한 단계 따라감 |
 | `compare_with_baseline(analysis, baseline_path) -> float` | 유지 (P1) | 변경 메서드 일치율 (F-204) |
 | `load_baseline(path) -> Baseline` | 유지 | |
@@ -586,7 +614,7 @@ class CodeIndexer:
 | `seed_params(pattern) -> RuleParams` | **추가** | **LLM 없이** 패턴을 그대로 옮김. sink = 정확한 호출명, guard = 같은 유형의 카탈로그 API 전체 |
 | `draft_params(client, pattern, prev, feedback) -> tuple[RuleParams, LlmProvenance]` | **추가** | `prompts/rule_params.md`: 파라미터 의미, 예시 2개, 이전 파라미터, 피드백. 일반화 방향을 고정한다 — sink 는 같은 의미의 호출 계열까지(`putString` → `put\w*`), guard 는 같은 유형의 다른 API 허용, 변수·필드명 고정 금지 |
 | `to_rule(pattern, params, rules_dir) -> Path` | 유지 (시그니처에 params 추가) | `templates/<type>.scm` 복사 + `params` 를 `.yaml` 로 저장 (F-503) |
-| `self_check(rule_path, analysis, store_dir, origin) -> RuleCheck` | 유지 (v2.1 변경) | before·after 파일에 `RuleMatcher.match_file`. `target_hit` = before 히트 중 패치된 메서드 존재. `control_hits` = **after** 파일들의 히트 중 패치된 메서드가 아닌 것의 수. `passed = target_hit and 패치된 메서드의 after 히트 0 and (origin == "seed" or control_hits <= max_control_hits)` (F-504) |
+| `self_check(rule_path, analysis, store_dir, origin) -> RuleCheck` | 유지 (v2.1 변경) | before·after 파일에 `RuleMatcher.match_file`. `target_hit` = before 히트 중 패치된 메서드 존재. `control_hits` = **after** 파일들의 히트 중 패치된 메서드가 아닌 것의 수. `passed = target_hit and 패치된 메서드의 after 히트 0 and (origin == "seed" or control_hits <= max_control_hits)` (F-504). **[v2.4 L2]** after·대조군은 `effective_after` 뷰(플래그 켜짐 기준)로 계산 |
 | `feedback(check, pattern) -> str` | **추가** | 우선순위 `INVALID` → `MISSED_BEFORE` → `HIT_AFTER` → `TOO_BROAD`, 문제 히트 최대 5개 첨부. `TOO_BROAD` 에는 대조군 히트 메서드 이름을 붙여 "이 메서드들은 잡지 않도록 좁혀라" 로 전달 |
 | `adopt_rule(ctx, client, pattern) -> Pattern` | **추가** | 아래 루프 |
 | `split_overfit(pattern) -> Pattern` | 유지 (P1) | (F-505) |
@@ -653,6 +681,7 @@ class CodeIndexer:
 | `scan(pattern, aosp_root) -> CandidateSet` | 유지 | `RuleMatcher.match_index` → `to_candidate` (F-601) |
 | `enforce_budget(pattern, matches) -> tuple[RuleParams, list[Match]]` | **추가 (v2.1 R1)** | `llm_generalized` 패턴의 Match 수가 `max_scan_hits` 를 넘으면 seed 파라미터로 다시 스캔하고 `tags` 에 `broad_fallback` 추가. seed 도 넘으면 그대로 두고 `stats` 에 경고 |
 | `to_candidate(m: Match, pattern, index) -> Candidate` | **추가** | `location`(sink, side="aosp"), `matched["source"/"sink"]`, `call_path`, `missing_guard`, `present_guards`, **`reachability`**(`CallGraph.reach` 결과) 채움. `public=False` |
+| `check_later_fixes(cands, bulletins_after) -> list[Candidate]` | **추가 (v2.4 L1)** | 스캔 스냅샷 이후 보안 공지 패치가 후보 메서드를 고쳤으면 `status="superseded"` (지우지 않음). `scan_snapshot` 기록 |
 | `exclude_origin(cands, pattern, analysis) -> list[Candidate]` | **추가** | 원본 CVE 가 고친 메서드와 같은 FQN 은 제외. 스캔 리비전이 패치 이전이면 제외하지 않고 `notes="origin"` (통합 테스트용) |
 | `dedup(candidates) -> CandidateSet` | 유지 (P1) | 같은 sink 메서드·같은 원인 병합 (F-602) |
 | `scan_incremental(pattern, subdir) -> CandidateSet` | 유지 (P2) | (F-603) |
@@ -672,6 +701,8 @@ class CodeIndexer:
 | `explain(candidate) -> ScoreReason` | 유지 | |
 | `score(reason, weights) -> float` | 유지 | 아래 식 (F-701) |
 | `review(client, candidate, pattern, analysis, index) -> CandidateReview` | **추가** | `prompts/candidate_review.md`: 원본 diff, 패턴 S·G·S, 후보 경로 메서드 본문(줄 번호 포함), 발견된 Guard. 질문은 세 가지로 고정 — Guard 가 정말 없는가, 다른 형태의 검사가 있는가, 일반 앱이 도달 가능한가 (F-704) |
+| `derive_verdict(answers) -> str` | **추가 (v2.2, P0)** | 질문별 답(`q_guard`·`q_alt_check`·`q_reach`)에서 코드 규칙으로 `likely`/`unlikely`/`unsure` 계산. LLM 의 전체 판정은 받지 않음 ([llm-verification.md](llm-verification.md) 3.3) |
+| `critique(critic, candidate, review) -> Critique` | **추가 (v2.2, P1)** | `likely` 후보만. 반박 근거가 대조를 통과하면 `unsure` 로 낮춤 |
 | `ground_review(raw, candidate, index) -> CandidateReview` | **추가** | 근거 줄이 제공한 메서드 범위 안 실제 줄인지 확인. 하나라도 아니면 `grounded=False`, `verdict="unsure"` |
 | `rank(candidates, top_n, weights) -> RankedCandidates` | 유지 | (F-702) |
 | `apply_label(candidate, label) -> Candidate` | 유지 (P1) | `labels.json` 에서 읽어 반영 (F-703) |
@@ -730,7 +761,10 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 | `time_saved(baseline, tool_minutes) -> float` | 유지 (P1) | (F-1104) |
 | `rule_adoption_rate(pattern_sets) -> float` | **추가** | |
 | `retro_match(candidate, later: list[CveRecord], store) -> RetroMatch \| None` | **추가** | file → method → guard 순으로 일치 수준. guard = 그 메서드에 같은 유형 Guard 가 추가됨 (F-1106) |
-| `retro_eval(old_revision, cves_before, after_month) -> dict` | **추가** | 과거 리비전을 스캔해 이후 ASB 패치와 guard 수준으로 일치하는 후보 수 (F-1106) |
+| `retro_eval(old_revision, cves_before, after_month, llm=False) -> dict` | **추가** | 과거 리비전을 스캔해 이후 ASB 패치와 guard 수준으로 일치하는 후보 수 (F-1106). **[v2.4 L3] 기본 `llm=False`**(seed·T1 규칙, 기준 시점 고정). `llm=True` 결과는 별도 키로 저장하고 모델 학습 시점을 함께 기록. 시점은 공개 릴리스 단위(L1) |
+| `label_agreement(labels_a, labels_b) -> float` | **추가 (v2.4 L4)** | 상위 N 후보 2인 독립 라벨의 Cohen's κ |
+| `baseline_vanir(cves, snapshot) -> dict` | **추가 (v2.4 L7)** | 같은 기준선·회고 CVE 에서 Vanir 실행 → 탐지 결과와 우리 후보 비교, "Vanir 가 놓친 정탐 수" |
+| `scope_report(dataset) -> dict` | **추가 (v2.4 L6)** | 범위 밖 사유별 개수(네이티브·커널·리소스 전용·플래그·Kotlin 미지원 등)를 보고서 한계 표로 |
 
 평가 지표와 제안서의 검증 단계 대응:
 
@@ -766,7 +800,8 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 | `render_inferred_badge(status)` | `inferred` 표시 |
 | `candidate_table(ranked, labels) -> DataFrame` | 서비스·메서드·Sink·누락 Guard·점수·검토·라벨 컬럼, 필터 |
 | `candidate_detail(c: Candidate)` | 경로별 코드, 점수 근거, LLM 검토 근거, 원본 패치 S·G·S 와 나란히 |
-| `save_label(cve_id, cand_id, label, note)` | `labels.json` 갱신 (`st.radio` + 저장 버튼) |
+| `save_label(cve_id, cand_id, label, note)` | `labels.json` 갱신 (`st.radio` + 저장 버튼). **[v2.4 L4]** 라벨 판정 기준표(§17 참조 문서)를 화면에 표시하고 `tp`/`fp` 는 근거 줄 입력 필수, 라벨러 이름 기록 |
+| `render_badges(c)` | **[v2.4]** `inferred` · `flag_gated` · `superseded` · `synthesized` · `exploratory` 배지 |
 
 ---
 
@@ -809,7 +844,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 
 **[v2.1] 5주차 마일스톤 — 수직 관통(vertical slice).** 5주 끝(11/30)까지 기준선 CVE **1건**을 파일 모드로 `collect → analyze → binder-path → root-cause → pattern` 까지 한 번 통과시킨다. 품질은 낮아도 된다(M4 는 LLM 대신 0번 후보 고정, M3 는 같은 클래스 안만). 목적은 `classify_fix`(R2)·`control_hits`(R1)·`unresolved_ratio`(R3) 문제가 6주차 인덱스 작업 전에 드러나게 하는 것이다. 일정이 밀리면 M9 HTML·영문판과 M8 부터 덜어낸다.
 
-**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). 보드 7번 표 기준 1순위는 CVE-2024-31312, CVE-2025-48549 이고, CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
+**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). **1순위는 CVE-2023-40105** (`ActivityManagerService.backupAgentCreated` 에 호출자 UID–패키지 UID 일치 검사 추가, `ADDED_GUARD`, PACKAGE → `uid_pkg_mismatch`). 단계별 값은 [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md). 11/23 확인 결과 CVE-2024-31312 는 SystemUI(Kotlin)의 잠금 화면 미디어 표시 로직 수정이라 **범위 밖**이고, CVE-2025-48549 는 frameworks/base 외에 frameworks/av(native) 수정이 포함돼 Java 쪽 커밋만 범위 안인지 확인이 필요하다. CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
 
 테스트 (`tests/`, pytest):
 
@@ -854,5 +889,21 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
 - 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
-- 담당 재확정
+- **범위 결정 → v2.3 제안으로 정리됨** ([scope-v2.3.md](scope-v2.3.md), 팀 리뷰 후 확정). 이전 메모: ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))
+- [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `ADDED_GUARD` 비율 측정(이번 주), M7 sink 의미 질문
+- 담당 재확정 — **[v2.4 L8] 팀 시험 일정을 반영해 5~6주 작업 재배분** (줄이는 순서: Track B 일반화 → Kotlin → M9 HTML·영문 → Track C 탭 → T3)
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
+
+---
+
+## 17. 책임 있는 공개 (v2.4 L5)
+
+`tp` 로 판정된 후보가 최신 공개 스냅샷과 이후 보안 공지에서도 고쳐지지 않았다면:
+
+1. **확인** — `check_later_fixes` 로 `superseded` 가 아님을 확인.
+2. **격리** — `public=False` 고정, 저장소·발표·`_public` 산출물·팀 채널에 위치·코드·경로를 넣지 않음.
+3. **신고** — Android 보안 취약점 보상 프로그램(Google Bug Hunters)에 신고, 날짜·ID 만 내부 기록, `status="reported"`.
+4. **발표** — "N 건 신고" 와 마스킹된 패턴 설명만. 세부 공개는 패치 공개 이후.
+5. **멘토 공유** — 신고 전 멘토에게 알리고 교육 과정 규정을 따른다.
+
+라벨 판정 기준표와 절차 상세는 [limitations.md](limitations.md).
