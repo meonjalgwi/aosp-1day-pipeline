@@ -78,4 +78,5 @@ docs/
   design.md         # 상세 설계서 (모듈·클래스·메서드)
   architecture.md   # 시스템 구조도 (Mermaid) + 참고 연구·도구
   llm-verification.md  # LLM 사용·검증 구조와 근거 문헌
+  walkthrough-cve-2023-40105.md  # 실제 CVE 한 건 관통 예시 (기준선 1순위)
 ```

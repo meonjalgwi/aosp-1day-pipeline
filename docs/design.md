@@ -813,7 +813,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 
 **[v2.1] 5주차 마일스톤 — 수직 관통(vertical slice).** 5주 끝(11/30)까지 기준선 CVE **1건**을 파일 모드로 `collect → analyze → binder-path → root-cause → pattern` 까지 한 번 통과시킨다. 품질은 낮아도 된다(M4 는 LLM 대신 0번 후보 고정, M3 는 같은 클래스 안만). 목적은 `classify_fix`(R2)·`control_hits`(R1)·`unresolved_ratio`(R3) 문제가 6주차 인덱스 작업 전에 드러나게 하는 것이다. 일정이 밀리면 M9 HTML·영문판과 M8 부터 덜어낸다.
 
-**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). 1순위는 diff 확인 후 확정한다. 11/23 확인 결과 CVE-2024-31312 는 SystemUI(Kotlin)의 잠금 화면 미디어 표시 로직 수정이라 **범위 밖**이고, CVE-2025-48549 는 frameworks/base 외에 frameworks/av(native) 수정이 포함돼 Java 쪽 커밋만 범위 안인지 확인이 필요하다. CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
+**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). **1순위는 CVE-2023-40105** (`ActivityManagerService.backupAgentCreated` 에 호출자 UID–패키지 UID 일치 검사 추가, `ADDED_GUARD`, PACKAGE → `uid_pkg_mismatch`). 단계별 값은 [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md). 11/23 확인 결과 CVE-2024-31312 는 SystemUI(Kotlin)의 잠금 화면 미디어 표시 로직 수정이라 **범위 밖**이고, CVE-2025-48549 는 frameworks/base 외에 frameworks/av(native) 수정이 포함돼 Java 쪽 커밋만 범위 안인지 확인이 필요하다. CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
 
 테스트 (`tests/`, pytest):
 
@@ -858,5 +858,6 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 P2
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
 - 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
+- [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `ADDED_GUARD` 비율 측정(이번 주), M7 sink 의미 질문
 - 담당 재확정
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
