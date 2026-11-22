@@ -79,4 +79,7 @@ docs/
   architecture.md   # 시스템 구조도 (Mermaid) + 참고 연구·도구
   llm-verification.md  # LLM 사용·검증 구조와 근거 문헌
   walkthrough-cve-2023-40105.md  # 실제 CVE 한 건 관통 예시 (기준선 1순위)
+  scope-v2.3.md     # 범위 확장 제안: AOSP 공개 패치 전체, 3개 트랙, 위험 대응
+  novel-patterns.md # 처음 보는 형식 대응: 차분 오라클, T1 템플릿 → T2 열린 합성 → T3 탐색, 패턴 라이브러리
+  limitations.md    # 한계와 대응 L1~L8, 라벨 판정 기준표, 책임 있는 공개 절차
 ```
