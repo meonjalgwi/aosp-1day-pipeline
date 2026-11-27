@@ -1,19 +1,19 @@
 """패치 전·후 소스에서 수정 패턴을 뽑는 추출기 (5주차 B, F-201~F-203).
 
 입력: ``sources/<CVE>/{before,after}/<저장소 상대 경로>.java`` (+ 있으면 ``sources/<CVE>/patch.diff``)
-출력: ``patterns/<CVE>.json`` — 팀 공통 JSON 형식 (``patch`` / ``vuln_pattern`` / ``rule``).
+출력: ``patterns/<CVE>.json`` - 팀 공통 JSON 형식 (``patch`` / ``vuln_pattern`` / ``rule``).
       ``rule`` 은 C(규칙 템플릿·차분 검증)가 채운다. 추출 세부 결과(변경 메서드, 추가·삭제 조건문,
       호출 API 변화, 추가된 보안 검사, sink 후보)는 ``analysis`` 에 둔다.
 
 판정은 전부 결정적 규칙이다 (LLM 없음). 분류할 수 없으면 추측하지 않고 ``OTHER``.
 
 pattern_type 규칙 (변경 메서드 하나 기준, 위에서부터 처음 맞는 것):
-  1. GUARD_ADDITION — 패치 후 Guard 호출 지점(유형, 호출 이름)이 패치 전보다 많아짐.
+  1. GUARD_ADDITION - 패치 후 Guard 호출 지점(유형, 호출 이름)이 패치 전보다 많아짐.
      같은 변경 묶음(커밋)에 정의된 헬퍼 메서드는 ``follow_depth`` 단계까지 따라가 본문의 Guard 를 센다.
      BINDER_IDENTITY(clearCallingIdentity 류)만 늘어난 것은 Guard 추가로 보지 않는다.
-  2. PRECONDITION_ADDITION — 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 if 가 추가됨.
-  3. API_REPLACEMENT — 같은 이름의 호출이 인자 수만 바뀌어 빠지고 들어옴.
-  4. OTHER — 그 밖 (형식만 바뀐 경우 ``formatting_only`` 표시).
+  2. PRECONDITION_ADDITION - 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 if 가 추가됨.
+  3. API_REPLACEMENT - 같은 이름의 호출이 인자 수만 바뀌어 빠지고 들어옴.
+  4. OTHER - 그 밖 (형식만 바뀐 경우 ``formatting_only`` 표시).
 CVE 전체 pattern_type 는 헬퍼가 아닌 변경 중 가장 높은 것 (GUARD_ADDITION > PRECONDITION_ADDITION > API_REPLACEMENT > OTHER).
 """
 
