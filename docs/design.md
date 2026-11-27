@@ -1,6 +1,6 @@
-# 상세 설계서 v2 — 모듈·클래스·메서드 명세
+# 상세 설계서 v2 - 모듈·클래스·메서드 명세
 
-> 2026-11-18 · 김나연 (v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): 지원 대상에 해당하는 AOSP 공개 보안 패치로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 패치 기반 규칙 생성 파이프라인 → [novel-patterns.md](novel-patterns.md) · v2.4: 한계 대응 → [limitations.md](limitations.md) · 지원 대상 정의는 [scope-v2.3.md](scope-v2.3.md) 1절)
+> 2026-11-18 · 김나연 (**v2.5: 2026-11-28 4주 계획·공통 형식 반영 → 아래 v2.5 표** · v2.1: 2026-11-23 실현 가능성 검토 반영 · v2.2: LLM 검증 구조 → [llm-verification.md](llm-verification.md) · **v2.3(제안): 지원 대상에 해당하는 AOSP 공개 보안 패치로 범위 확장 → [scope-v2.3.md](scope-v2.3.md)** · 패치 기반 규칙 생성 파이프라인 → [novel-patterns.md](novel-patterns.md) · v2.4: 한계 대응 → [limitations.md](limitations.md) · 지원 대상 정의는 [scope-v2.3.md](scope-v2.3.md) 1절)
 > 기준: PR #20 기능명세서 v0.3.1 · PR #30 설계 뼈대(2차 리뷰 반영본) · 주제 제안서(공개 패치 기반 미패치 취약점 탐지) · 11/18 멘토 피드백
 > 구조도는 [architecture.md](architecture.md), 기능 ID는 [feature-spec.md](feature-spec.md)를 따른다.
 
@@ -10,7 +10,7 @@
 2. M5에 LLM 규칙 파라미터 초안과, 자가 검증 실패 시 재생성 루프가 들어간다.
 3. M7에 오탐 필터와 LLM 후보 검토가, M11에 회고 검증이 들어간다.
 
-### v2.1 (11/23) — 실현 가능성 검토 반영
+### v2.1 (11/23) - 실현 가능성 검토 반영
 
 | # | 문제 | 수정 | 위치 |
 | --- | --- | --- | --- |
@@ -20,7 +20,7 @@
 | R4 | Guard 카탈로그에 강제력이 없는 `@RequiresPermission` 포함, `clearCallingIdentity` 이후 호출자 기반 검사도 Guard 로 인정 | `@RequiresPermission` 제거, `@EnforcePermission` 생성 헬퍼 호출 인식, identity 해제 구간 안의 호출자 기반 검사는 Guard 로 세지 않음 | §2.5 `security_apis` |
 | R5 | "판정은 결정적 절차" 원칙과 M7 LLM 재점수의 관계가 모호 | LLM 은 점수의 `review` 항만 바꾼다. 채택·필터·라벨은 절대 바꾸지 않는다고 명시 | §2.4, §9 |
 
-### v2.4 (11/23) — 한계 대응 반영 ([limitations.md](limitations.md))
+### v2.4 (11/23) - 한계 대응 반영 ([limitations.md](limitations.md))
 
 | # | 한계 | 설계 반영 | 위치 |
 | --- | --- | --- | --- |
@@ -32,6 +32,21 @@
 | L6 | 네이티브·커널·비공개 수정·리소스 전용 패치·다중 브랜치 커밋 | `dataset` 이 범위 밖 사유별 개수 집계, M1 이 Change-Id 로 같은 수정 묶음 | §3 |
 | L7 | 제안서의 베이스라인 비교가 일정에 없음 | Vanir 를 베이스라인으로 실행해 비교 (직접 구현 안 함) | §11 |
 | L8 | 시험 기간과 5주 작업 증가 | 팀 일정 반영 재배분, 줄이는 순서 고정 | §14, §16 |
+
+### v2.5 (11/28) - 4주 계획 재편·공통 형식 반영
+
+11/24부터 4주 계획(1~4주차)으로 재편하고, 1주차 작업 계획의 공통 JSON 형식·이름을 따른다. 모듈 구성(M1~M11)과 파이프라인은 그대로다 (팀 프레임워크 보드와 같음). 아래 표의 새 이름이 이 문서의 이전 표기보다 우선한다.
+
+| 항목 | 이전 표기 (v2.1~v2.4) | v2.5 |
+| --- | --- | --- |
+| 일정 | 5~8주 (11/24~12/21) | **1~4주차** (5주 = 1주차, 6주 = 2주차, 7주 = 3주차, 8주 = 4주차) |
+| 1주차 담당 | 모듈별 (나연 M1, 현아 M2·M4, 서진 M5·M6) | **A 서진** (CVE 데이터 정제·전·후 소스) · **B 나연** (수정 유형 분석·패턴 추출) · **C 현아** (규칙 템플릿·차분 검증). 2주차부터는 1주차 주말 점검 후 확정 |
+| 수정 유형 | `fix_kind`: `ADDED_GUARD` · `ADDED_CHECK` · `API_REPLACE` · `NOVEL` · `CONDITION_CHANGE` · `BYPASS` · `OTHER` | **`pattern_type`**: `GUARD_ADDITION` · `PRECONDITION_ADDITION` · `API_REPLACEMENT` · `OTHER`. 분류 불가 시 추측하지 않고 `OTHER` (`NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` 로 두고 사유만 기록) |
+| Guard 유형 | `PERMISSION` · `UID` · `PACKAGE` · `APPOPS` · `CROSS_USER` · `URI_USER` | `PERMISSION` · **`CALLER_UID`** · **`UID_PACKAGE_BINDING`** · **`APP_OPS`** · `CROSS_USER` · **`URI_USER_BOUNDARY`** · **`BINDER_IDENTITY`**(신원 경계, 단독으로는 Guard 추가 아님). 정본: [`config/guard_dictionary.json`](../config/guard_dictionary.json) |
+| 단계 간 공통 형식 | 단계별 산출물 (`patch_analysis.json`, `pattern.json` …) | 1주차 E2E 는 **`patch` / `vuln_pattern` / `rule`** 공통 형식으로 연결 (`patterns/<CVE>.json`, `baselines/ground_truth.json`). 유형별 표현: Source-Guard-Sink · Precondition-Target API · Unsafe API-Safe API · 전·후 차이 조건 |
+| 1주차 규칙 템플릿 | 트랙 A·B·C 템플릿 (+ T2 열린 합성, T3 탐색형) | **T1 Guard 없는 Sink**(필수) · **T2 API 앞 검사 누락** · **T3 위험 API 잔존** = 트랙 A·B·C 템플릿. ⚠ [novel-patterns.md](novel-patterns.md) 의 T2(LLM 열린 합성)·T3(탐색형)과 이름이 겹침 → §16 |
+| 차분 검증 판정 | `passed` (+ `TOO_BROAD`) | `PASS` (전 탐지 + 후 수정 지점 미탐지) · `WARN` (PASS + 다른 위치 탐지 N건 초과) · `FAIL` (실패 단계·원인 기록). 1주차는 다른 위치 탐지 건수만 수집 |
+| 기준선 | 3~5건 제안 | **CVE-2023-40105 · CVE-2024-0037 확정**, CVE-2023-21113 은 Development 데이터 겸 대체 기준선 |
 
 ---
 
@@ -140,11 +155,12 @@ PR #30의 `ArtifactMeta`, `CodeRef`, `LlmProvenance`, `Evidence`, `Claim`, `Patc
 @dataclass
 class PatchChange:                       # 기존 필드 유지 + 3개 추가
     ...
-    fix_kind: str = ""
-        # [v2.1 R2] ADDED_GUARD | CONDITION_CHANGE | BYPASS | OTHER  (M2 classify_fix 가 결정)
-        # ADDED_GUARD 만 M3 이후로 넘어간다. 나머지는 범위 밖 사유로 보고서에 남는다.
+    pattern_type: str = ""
+        # [v2.5] GUARD_ADDITION | PRECONDITION_ADDITION | API_REPLACEMENT | OTHER  (M2 classify_fix 가 결정)
+        # (v2.1 의 fix_kind. CONDITION_CHANGE·BYPASS 는 OTHER + notes 사유)
+        # 템플릿이 있는 앞의 셋만 규칙 생성으로 넘어간다. OTHER 는 사유와 함께 보고서에 남는다.
     added_guards: list[Evidence] = field(default_factory=list)
-        # side="after". claim = Guard 유형(PERMISSION|UID|PACKAGE|APPOPS|CROSS_USER),
+        # side="after". claim = Guard 유형(config/guard_dictionary.json 의 유형 이름),
         # snippet = 추가된 검사 코드. "패치가 추가한 Guard"의 근거.
     sink_candidates: list[Evidence] = field(default_factory=list)
         # side="after". Guard 뒤에 오는 민감 호출 후보 (우선순위순, 최대 8개)
@@ -155,7 +171,7 @@ class PatchChange:                       # 기존 필드 유지 + 3개 추가
 @dataclass
 class SgsDraft:
     change_id: str = ""                  # PatchChange.id
-    pattern_type: str = ""               # missing_permission | uid_pkg_mismatch | cross_user(P1)
+    rule_pattern: str = ""               # [v2.5 이름 변경] missing_permission | uid_pkg_mismatch | cross_user(P1)
     source: Claim = field(default_factory=Claim)   # Binder 진입점. evidence = CallPathEntry 첫 노드
     guard: Claim = field(default_factory=Claim)    # evidence = added_guards 중 LLM이 고른 것
     sink: Claim = field(default_factory=Claim)     # evidence = sink_candidates 중 LLM이 고른 것
@@ -271,7 +287,7 @@ class Labels:
     ARTIFACT = "labels.json"
 ```
 
-### 2.2 `storage.py` — `Store`
+### 2.2 `storage.py` - `Store`
 
 기존 `path`, `exists`, `save`, `load`, `save_text`는 그대로 쓰고, 아래만 추가한다.
 
@@ -332,7 +348,7 @@ LLM 출력은 항상 "번호로 고르기"를 우선한다. M4는 Guard·Sink �
 
 **[v2.2] LLM 검증 계층.** 호출 지점별 검증 계층(M4 표본 일치도, M7 질문 분해·`derive_verdict`·교차 모델 비판), 재현성·호출 상한, LLM 효과 비교 실험과 근거 문헌은 [llm-verification.md](llm-verification.md)에 둔다. 이에 따른 스키마·설정 추가분(`SgsDraft.agreement`, `ReviewAnswer`, `Critique`, `CandidateReview.answers`, `LlmConfig.consistency_samples`·`critic_*`·`max_calls_per_cve`)은 그 문서 6절을 따른다. 우선순위: 질문 분해·근거 대조·코드 판정은 **P0**, 표본 일치도·비판자·비교 실험은 **P1**, 라벨 기억은 **P2**.
 
-### 2.5 `analysis/` — 공유 Tree-sitter 도구
+### 2.5 `analysis/` - 공유 Tree-sitter 도구
 
 #### `javaast.py`
 
@@ -363,7 +379,9 @@ class JavaAst:
                    patch_commit: str = "") -> CodeRef     # snippet 자동 채움
 ```
 
-#### `security_apis.py` — `SecurityApiCatalog`
+#### `security_apis.py` - `SecurityApiCatalog`
+
+> **[v2.5]** 카탈로그 정본은 [`config/guard_dictionary.json`](../config/guard_dictionary.json) 이다 (유형 이름: `UID`→`CALLER_UID`, `PACKAGE`→`UID_PACKAGE_BINDING`, `APPOPS`→`APP_OPS`, `URI_USER`→`URI_USER_BOUNDARY`, `BINDER_IDENTITY` 추가). 아래 YAML 은 v2.1 설계 초안으로, 조건·어노테이션 규칙(R4)은 JSON 사전으로 옮기며 반영한다. 구현: `aosp1day/analysis/guards.py`.
 
 ```yaml
 # config/security_apis.yaml (초안)
@@ -391,7 +409,7 @@ identity_dependent:       # [v2.1 R4] 호출자 신원(Binder calling uid/pid)�
   cond_regex: 'Binder\.getCalling(Uid|Pid)\(\)|getCallingUserId\(\)'
   # clearCallingIdentity ~ restoreCallingIdentity 구간 안에 있으면 호출자가 system 으로 바뀌어
   # 항상 통과하므로 Guard 로 세지 않는다. (구간 밖에서 미리 읽어 둔 callingUid 변수 비교는 인정)
-pattern_type:            # Guard 유형 → 패턴 유형
+rule_pattern:            # Guard 유형 → 규칙 패턴 (v2.5 의 pattern_type 과 다름: 수정 유형이 아니라 규칙 이름)
   PERMISSION: missing_permission
   APPOPS: missing_permission
   UID: uid_pkg_mismatch
@@ -407,12 +425,12 @@ pattern_type:            # Guard 유형 → 패턴 유형
 | `match_annotation(name: str) -> str \| None` | |
 | `guards_in(ast, m, before_line=None) -> list[tuple[str, int, str]]` | 메서드 안 Guard 전부 (유형, 줄, 코드). **[v2.1 R4]** `identity_dependent` 이고 `ast.clear_identity_ranges(m)` 안에 있는 것은 빼고, 대신 `ignored_guards` 로 따로 반환 |
 | `is_identity_dependent(c_or_if) -> bool` | **[v2.1 R4]** |
-| `pattern_type_of(guard_type) -> str` | |
+| `rule_pattern_of(guard_type) -> str` | |
 | `api_names(types) -> set[str]` | M5 lint 에서 LLM이 쓴 API 이름 검사 |
 
 M2의 `detect_permission_apis`(F-203), M5 matcher, M6 인덱스, M7 필터가 모두 이 카탈로그 하나를 쓴다.
 
-#### `sinks.py` — `SinkCatalog`
+#### `sinks.py` - `SinkCatalog`
 
 ```yaml
 # config/sinks.yaml (초안)
@@ -437,7 +455,7 @@ PERSIST_WRITE:     { call: 'write\w*Locked|save\w*Locked|schedulePersist\w*' }
 | `StubMap.is_entry(m: MethodNode) -> bool` | Stub 구현 클래스의 public non-static 메서드이고 AIDL 메서드명과 일치 |
 | `StubMap.interface_of(cls) -> str \| None` | |
 
-#### `index.py` — `CodeIndex`, `CodeIndexer` (M6)
+#### `index.py` - `CodeIndex`, `CodeIndexer` (M6)
 
 ```python
 @dataclass
@@ -465,7 +483,7 @@ class CodeIndexer:
     def load_or_build(self, aosp_root, revision) -> CodeIndex   # output/_index/<rev>.json.gz
 ```
 
-#### `callgraph.py` — `CallGraph`
+#### `callgraph.py` - `CallGraph`
 
 타입 추론 없이 근사 그래프를 만든다. 이 한계와 미해결 비율은 보고서 한계 항목에 적는다.
 
@@ -485,7 +503,7 @@ class CodeIndexer:
 
 ---
 
-## 3. M1 Collector — `collect` (나연)
+## 3. M1 Collector - `collect`
 
 `reads=()`, `writes=("cve.json",)` + `patches/`, `src/`
 
@@ -525,7 +543,7 @@ class CodeIndexer:
 
 ---
 
-## 4. M2 Patch Analyzer — `analyze` (현아)
+## 4. M2 Patch Analyzer - `analyze`
 
 `reads=("cve.json",)`, `writes=("patch_analysis.json",)`
 
@@ -537,8 +555,8 @@ class CodeIndexer:
 | `extract_changed_units(hunk, before_src, after_src) -> PatchChange` | 유지 | `JavaAst.method_at` 으로 클래스·메서드 식별 (F-201) |
 | `classify_change(change) -> str` | 유지 (P1) | permission_check / input_validation / condition / exception / other (F-202) |
 | `detect_permission_apis(change) -> list[str]` | 유지 | 추가·삭제된 Guard API 이름 (F-203). `SecurityApiCatalog` 사용 |
-| `classify_fix(change, before_ast, after_ast) -> str` | **추가 (P0, v2.1 R2)** | 아래 규칙으로 `fix_kind` 결정. `find_added_guards` 보다 먼저 실행 |
-| `find_added_guards(change, after_ast) -> list[Evidence]` | **추가** | after 메서드에서 `+` 줄에 걸친 호출·if·어노테이션 중 카탈로그 일치 → `Evidence(side="after", claim=<유형>)`. **`fix_kind == "ADDED_GUARD"` 일 때만** 채운다 |
+| `classify_fix(change, before_ast, after_ast) -> str` | **추가 (P0, v2.1 R2 · v2.5)** | 아래 규칙으로 `pattern_type` 결정. `find_added_guards` 보다 먼저 실행 |
+| `find_added_guards(change, after_ast) -> list[Evidence]` | **추가** | after 메서드에서 `+` 줄에 걸친 호출·if·어노테이션 중 카탈로그 일치 → `Evidence(side="after", claim=<유형>)`. **`pattern_type == "GUARD_ADDITION"` 일 때만** 채운다 |
 | `detect_flag_gates(change, after_ast) -> list[str]` | **추가 (P0, v2.4 L2)** | + 줄을 감싼 `if (Flags.xxx())`·`android.*.flags.*` 조건 탐지 → `flag_gated` |
 | `effective_after(after_ast, flags) -> JavaAst` | **추가 (P0, v2.4 L2)** | 플래그 조건을 참으로 두고 else 쪽 경로를 뺀 실효 after 뷰. `classify_fix`·M5 오라클·대조군이 이 뷰를 쓴다 |
 | `find_sink_candidates(change, after_ast) -> list[Evidence]` | **추가** | Guard 줄 이후 호출을 `SinkCatalog.rank` 로 정렬, 최대 8개. Sink 가 같은 파일의 private 메서드 안이면 한 단계 따라감 |
@@ -547,10 +565,22 @@ class CodeIndexer:
 
 `added_guards` 가 빈 변경은 "Guard를 추가하지 않은 패치"(입력 길이 검증 등)라 이후 단계에서 빠진다. 이것이 도구 범위 밖이라는 근거로 보고서에 남는다.
 
-**[v2.1 R2] `classify_fix` 판정 규칙.** 변경 메서드마다 `G_b = guards_in(before)`, `G_a = guards_in(after)` 의 **유형 집합**을 비교한다.
+**[v2.5] `classify_fix` 판정 규칙** (v2.1 R2 수정). 변경 메서드마다 위에서부터 처음 맞는 것. 구현: `aosp1day/analysis/extractor.py`.
 
-| 순서 | 조건 | `fix_kind` | 이후 |
+| 순서 | 조건 | `pattern_type` | 이후 |
 | --- | --- | --- | --- |
+| 1 | 패치 후 Guard 호출 지점 **(유형, 호출 이름) 개수**가 패치 전보다 많음. 같은 커밋에 정의된 헬퍼는 2단계까지 따라가 본문의 Guard 를 셈. `BINDER_IDENTITY` 만 늘어난 것은 제외 | `GUARD_ADDITION` | T1 (Guard 없는 Sink) |
+| 2 | 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 `if` 추가 | `PRECONDITION_ADDITION` | T2 (API 앞 검사 누락) |
+| 3 | 같은 이름의 호출이 인자 수·타입만 바뀌어 빠지고 들어옴 | `API_REPLACEMENT` | T3 (위험 API 잔존) |
+| 4 | 그 외 (v2.1 의 `CONDITION_CHANGE`·`BYPASS` 포함) | `OTHER` | 템플릿 없음. 사유를 `notes` 에 기록 |
+
+CVE 전체 `pattern_type` 은 헬퍼가 아닌 변경 중 가장 앞 순서의 값이다.
+
+**v2.1 규칙과 다른 점 - 유형 집합 대신 개수 비교.** v2.1 은 `G_a − G_b`(유형 **집합** 차)로 봤다. 그런데 CVE-2024-0037 `SaveUi.applyCustomDescription` 은 패치 전에도 같은 메서드의 다른 값(`template`)에 `sanitizeRemoteView`(URI_USER_BOUNDARY)가 있었고, 패치는 빠져 있던 `batchUpdates` 경로에 같은 검사를 하나 더 넣었다. 집합으로 보면 `G_a == G_b` 라 `CONDITION_CHANGE` 로 잘못 빠진다. 그래서 (유형, 호출 이름) 개수로 비교한다. 같은 이유로 T1 규칙도 메서드 단위가 아니라 **호출 지점(값) 단위**로 판정해야 패치 전 코드를 탐지한다.
+
+판정 결과와 이유는 `PatchChange.notes` 에 남기고, 대시보드 개요 탭과 보고서 "한계"에 보여준다.
+
+--- | --- | --- | --- |
 | 1 | diff 가 `writeToParcel`·`createFromParcel`·`readFromParcel`·`Parcel`/`Bundle` 읽기·쓰기 API 를 주로 바꿈 | `BYPASS` | 범위 밖 (Parcel·Bundle 불일치 계열. P2 확장 후보) |
 | 2 | `G_a − G_b` 가 비어 있지 않음 (패치 후에만 있는 Guard 유형) | `ADDED_GUARD` | M3 이후 진행 |
 | 3 | `G_a == G_b` 이고 비어 있지 않음, 그런데 Guard 가 걸린 `if` 조건·인자·위치가 바뀜 | `CONDITION_CHANGE` | 범위 밖. 패치 전 코드에도 Guard 호출이 있어 "누락" 규칙으로 전·후를 구분할 수 없음 |
@@ -560,7 +590,7 @@ class CodeIndexer:
 
 ---
 
-## 5. M3 Binder Path Analyzer — `binder-path`
+## 5. M3 Binder Path Analyzer - `binder-path`
 
 `reads=("patch_analysis.json",)`, `writes=("call_path.json",)`
 
@@ -574,7 +604,7 @@ class CodeIndexer:
 
 ---
 
-## 6. M4 Root Cause Analyzer — `root-cause` (현아, LLM)
+## 6. M4 Root Cause Analyzer - `root-cause` (LLM)
 
 `reads=("patch_analysis.json", "call_path.json")`, `writes=("root_cause.json", "prompts/root_cause.txt")`
 
@@ -585,7 +615,7 @@ class CodeIndexer:
 | `infer(client, prompt, analysis) -> RootCause` | 유지 | `call_structured(..., ROOT_CAUSE_SCHEMA)`. 근본 원인·발생 조건·보안 불변식 (F-401·402) |
 | `attach_evidence(claim, analysis) -> Claim` | 유지 | LLM이 든 근거를 실제 hunk 와 대조, 없는 위치는 버림. 근거 0개면 "근거 없음" 표시 (F-403) |
 | `validate_schema(raw, max_retry=2) -> RootCause` | 유지 | (F-404) |
-| `structure_sgs(raw, analysis, call_path) -> list[SgsDraft]` | **추가** | LLM 응답의 `guard_index`·`sink_index` 로 실제 `Evidence` 를 꺼내 S·G·S 구성. 범위 밖 번호면 그 변경은 `sgs` 에서 빠지고 `notes` 에 기록. `pattern_type` 은 Guard 유형에서 결정 (LLM이 정하지 않음) |
+| `structure_sgs(raw, analysis, call_path) -> list[SgsDraft]` | **추가** | LLM 응답의 `guard_index`·`sink_index` 로 실제 `Evidence` 를 꺼내 S·G·S 구성. 범위 밖 번호면 그 변경은 `sgs` 에서 빠지고 `notes` 에 기록. `rule_pattern` 은 Guard 유형에서 결정 (LLM이 정하지 않음) |
 
 ```json
 // ROOT_CAUSE_SCHEMA 의 LLM 출력 (요약)
@@ -601,7 +631,7 @@ class CodeIndexer:
 
 ---
 
-## 7. M5 Pattern / Rule Generator — `pattern` (LLM 초안 + 결정적 검증)
+## 7. M5 Pattern / Rule Generator - `pattern` (LLM 초안 + 결정적 검증)
 
 `reads=("root_cause.json", "patch_analysis.json", "call_path.json")`, `writes=("pattern.json",)` + `rules/<CVE>/`
 
@@ -612,7 +642,7 @@ class CodeIndexer:
 | `run(ctx)` | 유지 | 패턴마다 `adopt_rule` |
 | `extract_patterns(root_cause, analysis) -> list[Pattern]` | 유지 | `SgsDraft` → `Pattern` (source·guard·sink `PatternElement`, invariant, `derived_from`) (F-501) |
 | `seed_params(pattern) -> RuleParams` | **추가** | **LLM 없이** 패턴을 그대로 옮김. sink = 정확한 호출명, guard = 같은 유형의 카탈로그 API 전체 |
-| `draft_params(client, pattern, prev, feedback) -> tuple[RuleParams, LlmProvenance]` | **추가** | `prompts/rule_params.md`: 파라미터 의미, 예시 2개, 이전 파라미터, 피드백. 일반화 방향을 고정한다 — sink 는 같은 의미의 호출 계열까지(`putString` → `put\w*`), guard 는 같은 유형의 다른 API 허용, 변수·필드명 고정 금지 |
+| `draft_params(client, pattern, prev, feedback) -> tuple[RuleParams, LlmProvenance]` | **추가** | `prompts/rule_params.md`: 파라미터 의미, 예시 2개, 이전 파라미터, 피드백. 일반화 방향을 고정한다 - sink 는 같은 의미의 호출 계열까지(`putString` → `put\w*`), guard 는 같은 유형의 다른 API 허용, 변수·필드명 고정 금지 |
 | `to_rule(pattern, params, rules_dir) -> Path` | 유지 (시그니처에 params 추가) | `templates/<type>.scm` 복사 + `params` 를 `.yaml` 로 저장 (F-503) |
 | `self_check(rule_path, analysis, store_dir, origin) -> RuleCheck` | 유지 (v2.1 변경) | before·after 파일에 `RuleMatcher.match_file`. `target_hit` = before 히트 중 패치된 메서드 존재. `control_hits` = **after** 파일들의 히트 중 패치된 메서드가 아닌 것의 수. `passed = target_hit and 패치된 메서드의 after 히트 0 and (origin == "seed" or control_hits <= max_control_hits)` (F-504). **[v2.4 L2]** after·대조군은 `effective_after` 뷰(플래그 켜짐 기준)로 계산 |
 | `feedback(check, pattern) -> str` | **추가** | 우선순위 `INVALID` → `MISSED_BEFORE` → `HIT_AFTER` → `TOO_BROAD`, 문제 히트 최대 5개 첨부. `TOO_BROAD` 에는 대조군 히트 메서드 이름을 붙여 "이 메서드들은 잡지 않도록 좁혀라" 로 전달 |
@@ -637,7 +667,7 @@ class CodeIndexer:
 `templates/*.scm` 은 패턴 유형별로 고정이고, CVE마다 바뀌는 건 `.yaml` 파라미터뿐이다.
 
 ```scheme
-; templates/missing_permission.scm — 메서드와 그 안의 호출을 잡는다. 판정은 matcher 가 한다.
+; templates/missing_permission.scm - 메서드와 그 안의 호출을 잡는다. 판정은 matcher 가 한다.
 (method_declaration
   (modifiers)? @mods
   name: (identifier) @method
@@ -669,7 +699,7 @@ class CodeIndexer:
 
 ---
 
-## 8. M6 Scanner — `scan`
+## 8. M6 Scanner - `scan`
 
 `reads=("pattern.json",)`, `writes=("candidates.json",)`
 
@@ -690,7 +720,7 @@ class CodeIndexer:
 
 ---
 
-## 9. M7 Prioritizer — `prioritize` (필터 + 점수 + LLM 검토)
+## 9. M7 Prioritizer - `prioritize` (필터 + 점수 + LLM 검토)
 
 `reads=("candidates.json", "pattern.json", "patch_analysis.json")`, `writes=("ranked_candidates.json",)`
 
@@ -700,20 +730,20 @@ class CodeIndexer:
 | `apply_filters(cands, index, cg) -> list[Candidate]` | **추가** | 아래 필터. 탈락해도 지우지 않고 `filters` 에 사유를 남김 (F-705) |
 | `explain(candidate) -> ScoreReason` | 유지 | |
 | `score(reason, weights) -> float` | 유지 | 아래 식 (F-701) |
-| `review(client, candidate, pattern, analysis, index) -> CandidateReview` | **추가** | `prompts/candidate_review.md`: 원본 diff, 패턴 S·G·S, 후보 경로 메서드 본문(줄 번호 포함), 발견된 Guard. 질문은 세 가지로 고정 — Guard 가 정말 없는가, 다른 형태의 검사가 있는가, 일반 앱이 도달 가능한가 (F-704) |
+| `review(client, candidate, pattern, analysis, index) -> CandidateReview` | **추가** | `prompts/candidate_review.md`: 원본 diff, 패턴 S·G·S, 후보 경로 메서드 본문(줄 번호 포함), 발견된 Guard. 질문은 세 가지로 고정 - Guard 가 정말 없는가, 다른 형태의 검사가 있는가, 일반 앱이 도달 가능한가 (F-704) |
 | `derive_verdict(answers) -> str` | **추가 (v2.2, P0)** | 질문별 답(`q_guard`·`q_alt_check`·`q_reach`)에서 코드 규칙으로 `likely`/`unlikely`/`unsure` 계산. LLM 의 전체 판정은 받지 않음 ([llm-verification.md](llm-verification.md) 3.3) |
 | `critique(critic, candidate, review) -> Critique` | **추가 (v2.2, P1)** | `likely` 후보만. 반박 근거가 대조를 통과하면 `unsure` 로 낮춤 |
 | `ground_review(raw, candidate, index) -> CandidateReview` | **추가** | 근거 줄이 제공한 메서드 범위 안 실제 줄인지 확인. 하나라도 아니면 `grounded=False`, `verdict="unsure"` |
 | `rank(candidates, top_n, weights) -> RankedCandidates` | 유지 | (F-702) |
 | `apply_label(candidate, label) -> Candidate` | 유지 (P1) | `labels.json` 에서 읽어 반영 (F-703) |
 
-필터 (`stages/m07_filters.py`, 시그니처 `(cand, index, cg, config) -> str` — `"pass"`, `"unknown"`, 또는 탈락 사유):
+필터 (`stages/m07_filters.py`, 시그니처 `(cand, index, cg, config) -> str` - `"pass"`, `"unknown"`, 또는 탈락 사유):
 
 | 함수 | 탈락 조건 | `unknown` (탈락 안 함, v2.1 R3) |
 | --- | --- | --- |
 | `f_guard_in_callers` | 해석된 상위 caller(`paths_to`)에 요구 유형 Guard 있음 | 해석된 caller 에는 없지만 `unresolved_callers` 가 있음 |
 | `f_unreachable` | `reach(...).status == "none"` | `reach(...).status == "unknown"` |
-| `f_annotation_guard` | 진입점에 `@EnforcePermission` (v2.1 R4: `@RequiresPermission` 은 강제력이 없어 제외) | — |
+| `f_annotation_guard` | 진입점에 `@EnforcePermission` (v2.1 R4: `@RequiresPermission` 은 강제력이 없어 제외) | - |
 | `f_service_gate` | 같은 Stub 의 `onTransact` 오버라이드나 공통 헬퍼가 모든 진입점을 검사 |
 | `f_debug_entry` | `dump`, `onShellCommand` 등 셸·덤프 전용 |
 
@@ -732,7 +762,7 @@ LLM 검토 전 점수로 상위 `review_top_k` 를 고르고, 검토 후 다시 
 
 ---
 
-## 10. M9 Reporter — `report`
+## 10. M9 Reporter - `report`
 
 `reads=("cve.json",)` (나머지는 `load_optional`), `writes=("report.json", "report.md", "report.html")`
 
@@ -749,7 +779,7 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 
 ---
 
-## 11. M11 Evaluation — `eval`
+## 11. M11 Evaluation - `eval`
 
 | 메서드 | 상태 | 역할 |
 | --- | --- | --- |
@@ -778,7 +808,7 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 
 ---
 
-## 12. M10 Dashboard — Streamlit (`dashboard/app.py`)
+## 12. M10 Dashboard - Streamlit (`dashboard/app.py`)
 
 미리 생성된 JSON만 읽는다. 쓰는 것은 수동 라벨(`labels.json`)뿐이다.
 
@@ -790,7 +820,7 @@ LLM을 쓰지 않는다. 템플릿만으로 만든다.
 | 탐지 규칙 | `page_rules(cve_id)` **추가** | D-5 | `pattern.json` attempts, `rules/<CVE>/*.scm/.yaml` | P0 |
 | 변종 후보 | `page_candidates(cve_id)` | D-7 | `ranked_candidates.json`, `labels.json` | P0 |
 | 보고서 | `page_report(cve_id)` | D-9 | `report.*` (한/영 전환, 다운로드) | P0 |
-| — | `page_verification(cve_id)` | D-8 | `verification.json` | 후속 범위 |
+| - | `page_verification(cve_id)` | D-8 | `verification.json` | 후속 범위 |
 
 | 함수 | 역할 |
 | --- | --- |
@@ -832,7 +862,21 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 ## 14. 담당 · 일정 · 테스트
 
-담당은 기존 1차 배정(나연 M1, 현아 M2+M4)을 유지한다. 서진은 Harness 가 빠졌으므로 규칙 엔진 쪽을 제안한다. 구현 전 재확정한다.
+**[v2.5] 4주 계획.** 담당은 주차마다 정한다. 2주차부터는 1주차 주말 점검(READY CVE 수, E2E 동작, N값, 2주차 방향) 후 확정한다. 이슈: 1주차 #36 (A #37 · B #38 · C #39), 2주차 #40, 3주차 #41, 4주차 #42.
+
+| 주차 | 내용 | 담당 |
+| --- | --- | --- |
+| 1주차 (11/24~11/30) | **기준선 E2E**: `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. 필수 CVE-2023-40105, 추가 CVE-2024-0037·템플릿 3종 | A 서진: CVE 데이터 정제·전·후 소스 (`cve_inventory.json`, `sources/<CVE>/`) · B 나연: 정답·추출기·Guard 사전 (`ground_truth.json`, `patterns/<CVE>.json`) · C 현아: T1~T3 템플릿·차분 검증기·E2E (`validation_result.json`) |
+| 2주차 (12/1~12/7) | 스캔·선별 (잠정): 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(T1), 대시보드 1차, Precision 측정 시작 | 미정 |
+| 3주차 (12/8~12/14) | 검토·평가 (잠정): M7 LLM 검토, 대시보드 후보·보고서 탭, M9, M11 (채택률·Precision·회고 검증·Vanir) | 미정 |
+| 4주차 (12/15~12/21) | 통합·평가·발표 | 전원 |
+
+**1주차 마일스톤 (11/30 최소 완료선).** A: 후보 10건 상태 분류, 기준선 2건 전·후 코드 확보 · B: 기준선 2건 수동 정답, CVE-2023-40105 패턴 JSON · C: T1 템플릿, CVE-2023-40105 차분 검증 · 공동: 유형 커버리지 표, 제외 사례 표, 기준선 1건 E2E 데모. (v2.1 의 "5주차 수직 관통"을 대체. M3·M4 는 1주차 E2E 에서 빼고 `ground_truth.json` 의 S·G·S 로 대신한다.)
+
+**기준선 (확정).** CVE-2023-40105 (`ActivityManagerService.backupAgentCreated`, `UID_PACKAGE_BINDING` 추가) · CVE-2024-0037 (Autofill `sanitizeSlice`·`sanitizeRemoteView`, `URI_USER_BOUNDARY` 추가). 둘 다 `GUARD_ADDITION`. CVE-2023-21113 은 Development 데이터 겸 대체 기준선. 정답: [`baselines/ground_truth.json`](../baselines/ground_truth.json) (셋 합의 전 초안). 이전 선정 메모(CVE-2024-31312·CVE-2025-48549·CVE-2023-21098 범위 판정)는 [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md) 0절 참고.
+
+<details>
+<summary>v2.1 시점 계획 (참고용, 더 이상 쓰지 않음)</summary>
 
 | 주차 | 나연 | 현아 | 서진 |
 | --- | --- | --- | --- |
@@ -842,11 +886,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 | 7주 (12/8~12/14) | 대시보드 탭 4~5·라벨, M9 | M7 `review`·`ground_review`·점수 | M11 회고 검증·지표 |
 | 8주 (12/15~12/21) | 통합·발표 | 후보 수동 검토 | 평가 정리 |
 
-> v2.3 이후의 5~8주 일정·담당은 [scope-v2.3.md](scope-v2.3.md) 6절과 [roadmap.md](roadmap.md) 가 우선한다. 위 표는 v2.1 시점 계획이다.
-
-**[v2.1] 5주차 마일스톤 — 수직 관통(vertical slice).** 5주 끝(11/30)까지 기준선 CVE **1건**을 파일 모드로 `collect → analyze → binder-path → root-cause → pattern` 까지 한 번 통과시킨다. 품질은 낮아도 된다(M4 는 LLM 대신 0번 후보 고정, M3 는 같은 클래스 안만). 목적은 `classify_fix`(R2)·`control_hits`(R1)·`unresolved_ratio`(R3) 문제가 6주차 인덱스 작업 전에 드러나게 하는 것이다. 일정이 밀리면 M9 HTML·영문판과 M8 부터 덜어낸다.
-
-**기준선 CVE 선정 기준 (v2.1 R2).** ① `classify_fix == ADDED_GUARD` ② Guard 유형이 P0(PERMISSION·APPOPS·UID·PACKAGE) ③ 가능하면 한 CVE 가 여러 위치를 고친 B 계열(회고 검증에 바로 쓰임). **1순위는 CVE-2023-40105** (`ActivityManagerService.backupAgentCreated` 에 호출자 UID–패키지 UID 일치 검사 추가, `ADDED_GUARD`, PACKAGE → `uid_pkg_mismatch`). 단계별 값은 [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md). 11/23 확인 결과 CVE-2024-31312 는 SystemUI(Kotlin)의 잠금 화면 미디어 표시 로직 수정이라 **범위 밖**이고, CVE-2025-48549 는 frameworks/base 외에 frameworks/av(native) 수정이 포함돼 Java 쪽 커밋만 범위 안인지 확인이 필요하다. CVE-2023-21098 은 diff 확인 후 `CONDITION_CHANGE` 면 기준선에서 빼고 "범위 밖 예시"로 발표에 쓴다.
+</details>
 
 테스트 (`tests/`, pytest):
 
@@ -854,10 +894,10 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 | --- | --- | --- |
 | `analysis/javaast` | 작은 Java 문자열 | 메서드·호출·if·clearCallingIdentity 범위 정확 |
 | `security_apis` | 카탈로그별 양성·음성 예 | 유형 분류 정확. `clearCallingIdentity` 구간 안의 `enforceCallingPermission` 은 Guard 아님, `@RequiresPermission` 은 Guard 아님 (R4) |
-| M2 `classify_fix` | 작은 before/after 쌍 4종 | Guard 신규 추가 → `ADDED_GUARD`, 기존 검사의 if 조건만 변경 → `CONDITION_CHANGE`, Parcel 읽기·쓰기 변경 → `BYPASS` (R2) |
+| M2 `classify_fix` | 작은 before/after 쌍 (`tests/test_extractor.py`) | Guard 신규 추가 → `GUARD_ADDITION`, 조기 종료 if 추가 → `PRECONDITION_ADDITION`, 같은 호출 인자만 변경 → `API_REPLACEMENT`, 그 외·형식만 변경 → `OTHER`, `BINDER_IDENTITY` 만 추가 → Guard 추가 아님 |
 | `callgraph.reach` | 인터페이스 경유·Handler 경유 호출이 있는 Java 문자열 | 해당 경로가 `none` 이 아니라 `unknown`/`partial` (R3) |
 | M1 | `tests/fixtures/<CVE>/` 에 Gitiles 응답 고정 (네트워크 모킹) | 커밋·파일·hunk 수 일치, 캐시 재사용 |
-| M2 | 기준선 CVE | `added_guards` 유형이 `baselines` 정답과 일치 |
+| M2 | 기준선 CVE 2건 | 변경 메서드·`pattern_type`·`added_guards`·sink 가 `baselines/ground_truth.json` 과 일치 |
 | M4 | LLM 응답 fixture 고정 | 범위 밖 번호·없는 줄은 버려짐 |
 | M5 | 기준선 CVE 전부 | seed 규칙 `passed=True` |
 | M5 대조군 | 일부러 넓힌 파라미터(`sink_calls: ["\\w+"]`) | `TOO_BROAD` 로 실패 (R1) |
@@ -872,14 +912,14 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 | 기능 ID | 변경 |
 | --- | --- |
 | P0 8번 | "기준선 CVE 1건 패치 전후 검증" → "기준선 CVE 3~5건 규칙 자가 검증 통과" |
-| M8 전체 (F-801~F-810) | **후속 범위** — feature-spec v0.4 부록 A 로 이동 (반영 완료) |
+| M8 전체 (F-801~F-810) | **후속 범위** - feature-spec v0.4 부록 A 로 이동 (반영 완료) |
 | F-401 | 가설 생성 제거, S·G·S 초안(`sgs`) 추가 |
 | F-504 | 피드백 기반 재생성 포함 |
 | F-507 (신규, P0) | LLM 규칙 파라미터 초안 + 재생성(최대 3회), 실패 시 seed 채택 |
 | F-704 (신규, P0) | LLM 후보 검토 (상위 K, `inferred`, 근거 대조) |
 | F-705 (신규, P0) | 오탐 필터 5종, 탈락 사유 기록 |
 | F-1106 (신규, P1) | 회고 검증 |
-| F-202 | P1 → **P0**, `classify_fix`(`fix_kind`)로 대체 (v2.1 R2) |
+| F-202 | P1 → **P0**, `classify_fix`(`pattern_type`, v2.5)로 대체 (v2.1 R2) |
 | F-504 | 음성 대조군 예산(`control_hits`) 포함 (v2.1 R1) |
 | F-705 | 필터 결과에 `unknown` 추가, `@RequiresPermission` 제외 (v2.1 R3·R4) |
 | D-5 (신규, P0) | 규칙·자가 검증 화면 |
@@ -889,11 +929,13 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 - 스캔할 `aosp_revision` 과 회고 검증용 과거 리비전
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
-- 기준선 CVE 3~5건 선정 (§14 선정 기준 적용, ★ 3건 diff 확인부터)
+- ~~기준선 CVE 3~5건 선정~~ → 2건 확정 (v2.5, §14). `ground_truth.json` 셋 합의
+- **[v2.5] 템플릿 이름 겹침:** 1주차 계획의 T1~T3(Guard 없는 Sink · API 앞 검사 누락 · 위험 API 잔존)과 [novel-patterns.md](novel-patterns.md) 의 T1(템플릿)·T2(LLM 열린 합성)·T3(탐색형)이 이름이 겹침. 한쪽 이름을 바꿀지 결정
+- **[v2.5] 차분 검증 N값** (WARN 기준, 1주차는 다른 위치 탐지 건수만 수집)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
 - **범위 결정 → v2.3 제안으로 정리됨** ([scope-v2.3.md](scope-v2.3.md), 팀 리뷰 후 확정). 이전 메모: ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))
-- [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `ADDED_GUARD` 비율 측정(이번 주), M7 sink 의미 질문
-- 담당 재확정 — **[v2.4 L8] 팀 시험 일정을 반영해 5~6주 작업 재배분** (줄이는 순서: Track B 일반화 → Kotlin → M9 HTML·영문 → Track C 탭 → T3)
+- [관통 예시](walkthrough-cve-2023-40105.md)에서 나온 보완점 W1~W5: 새 헬퍼 메서드 안 Guard 추적(M2), `RuleParams.source_param_regex`·`source_param_use`(uid_pkg_mismatch), `control_hits` 는 `present_guards` 가 빈 히트만 집계, `dataset.prefilter` 로 `GUARD_ADDITION` 비율 측정, M7 sink 의미 질문
+- 2주차 이후 담당 - 1주차 주말 점검에서 확정 (v2.5). 일정이 밀릴 때 줄이는 순서는 유지: Track B 일반화 → Kotlin → M9 HTML·영문 → Track C 탭 → T3
 - PR #20·#30 머지 순서 (이 PR은 #30 위에 쌓임)
 
 ---
@@ -902,10 +944,10 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 `tp` 로 판정된 후보가 최신 공개 스냅샷과 이후 보안 공지에서도 고쳐지지 않았다면:
 
-1. **확인** — `check_later_fixes` 로 `superseded` 가 아님을 확인.
-2. **격리** — `public=False` 고정, 저장소·발표·`_public` 산출물·팀 채널에 위치·코드·경로를 넣지 않음.
-3. **신고** — Android 보안 취약점 보상 프로그램(Google Bug Hunters)에 신고, 날짜·ID 만 내부 기록, `status="reported"`.
-4. **발표** — "N 건 신고" 와 마스킹된 패턴 설명만. 세부 공개는 패치 공개 이후.
-5. **멘토 공유** — 신고 전 멘토에게 알리고 교육 과정 규정을 따른다.
+1. **확인** - `check_later_fixes` 로 `superseded` 가 아님을 확인.
+2. **격리** - `public=False` 고정, 저장소·발표·`_public` 산출물·팀 채널에 위치·코드·경로를 넣지 않음.
+3. **신고** - Android 보안 취약점 보상 프로그램(Google Bug Hunters)에 신고, 날짜·ID 만 내부 기록, `status="reported"`.
+4. **발표** - "N 건 신고" 와 마스킹된 패턴 설명만. 세부 공개는 패치 공개 이후.
+5. **멘토 공유** - 신고 전 멘토에게 알리고 교육 과정 규정을 따른다.
 
 라벨 판정 기준표와 절차 상세는 [limitations.md](limitations.md).

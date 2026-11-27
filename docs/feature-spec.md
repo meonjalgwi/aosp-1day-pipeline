@@ -1,9 +1,10 @@
 # 기능명세서 (Feature Specification)
 
-> 산출물 툴: **공개 패치 기반 AOSP 유사 취약점 탐지 도구** — 패치 기반 규칙 생성 파이프라인
+> 산출물 툴: **공개 패치 기반 AOSP 유사 취약점 탐지 도구** - 패치 기반 규칙 생성 파이프라인
 > 용어가 낯설면 [glossary.md](glossary.md) 참고 · 클래스·메서드 상세는 [design.md](design.md) · 범위 근거는 [scope-v2.3.md](scope-v2.3.md)
-> 상태: **v0.4 (2026-11-23)** — 설계 v2.4 와 맞춤. ① 동적 재현(M8)을 **후속 범위로 분리**(이번 프로젝트 산출물·평가·일정에서 제외) ② 대상을 "지원 대상에 해당하는 AOSP 공개 보안 패치" 로 정의 ③ 수정 유형 분류(`fix_kind`)·차분 오라클·3개 트랙·T1~T3 규칙 생성 반영 ④ 한계 대응(L1~L8) 반영.
-> 이전 버전: v0.3.1 (2026-11-05, PR #20·#30 리뷰 반영) — 동적 검증 관련 결정은 부록 A 로 옮김.
+> 상태: **v0.5 (2026-11-28)** - 4주 계획(1~4주차) 재편, 1주차 공통 JSON 형식(`patch`/`vuln_pattern`/`rule`), 수정 유형 `pattern_type`·Guard 유형 새 이름 반영 (대응표: [design.md](design.md) v2.5). 모듈 구성은 그대로.
+> 이전: **v0.4 (2026-11-23)** - 설계 v2.4 와 맞춤. ① 동적 재현(M8)을 **후속 범위로 분리**(이번 프로젝트 산출물·평가·일정에서 제외) ② 대상을 "지원 대상에 해당하는 AOSP 공개 보안 패치" 로 정의 ③ 수정 유형 분류(`fix_kind`)·차분 오라클·3개 트랙·T1~T3 규칙 생성 반영 ④ 한계 대응(L1~L8) 반영.
+> 이전 버전: v0.3.1 (2026-11-05, PR #20·#30 리뷰 반영) - 동적 검증 관련 결정은 부록 A 로 옮김.
 
 ## 1. 개요
 
@@ -39,23 +40,25 @@ CVE/패치 입력
 | 처리 방식 | 템플릿에 맞는 형식은 트랙 A(권한형 Guard)·B(검사형)·C(API 교체형) 규칙으로, 맞지 않는 형식은 T2(LLM 규칙 합성)·T3(탐색형)으로 처리 ([novel-patterns.md](novel-patterns.md)) |
 | **지원 대상 밖** (범위 밖으로 기록) | 네이티브(C/C++)·커널·벤더/비공개 수정, 리소스·설정만 바꾼 패치, 생성 코드만 바뀐 패치, 수정 지점을 분리할 수 없는 대규모 리팩터링, 실제 공격용 exploit 작성 |
 | **후속 범위** (이번 프로젝트 제외) | **동적 재현·패치 전후 실행 검증**(M8 Harness·Verifier, 테스트 APK, 가상 기기). 코드·스키마 뼈대는 저장소에 남기되 산출물·평가·일정에 포함하지 않음 (부록 A) |
-| 기준선 CVE | A-1 CVE-2023-40105 · A-2 CVE-2024-0037 · A-3 CVE-2024-0053 · B-1 CVE-2023-40111 · C-1 CVE-2023-40109 (팀 확정 전 제안, [scope-v2.3.md](scope-v2.3.md) 5절) |
+| 기준선 CVE | **CVE-2023-40105 · CVE-2024-0037 (확정)**. CVE-2023-21113 은 Development 데이터 겸 대체 기준선. 추가 후보: CVE-2024-0053 · CVE-2023-40111 · CVE-2023-40109 ([scope-v2.3.md](scope-v2.3.md) 5절) |
 
 ## 2. 전체 구조
 
 | 모듈 | 입력 | 출력 (JSON) | 주차 |
 | --- | --- | --- | --- |
-| M1. Collector | CVE ID 또는 패치 커밋 URL/해시 | `cve.json` + `patches/`, `src/` | 2·5주 |
-| M2. Patch Analyzer | `cve.json` | `patch_analysis.json` (`fix_kind`, 추가된 Guard·검사, 플래그 조건) | 3·5주 |
-| M3. Binder Path / Source | `patch_analysis.json` + AOSP 소스 | `call_path.json` | 4~6주 |
-| M4. Root Cause (LLM, 트랙 A) | M2·M3 결과 | `root_cause.json` (S·G·S 초안) | 4~6주 |
-| M5. Pattern / Rule | M4·M2 결과 + 전·후 소스 | `pattern.json` + `rules/` | 5~7주 |
-| M6. Scanner | 규칙 + 스캔 스냅샷 인덱스 | `candidates.json` | 6주 |
-| M7. Prioritizer | `candidates.json` | `ranked_candidates.json` | 6~7주 |
-| M9. Reporter | 위 JSON 전부 | `report.json`·`.md`·`.html` (+ `_public`) | 7주 |
-| M10. Web Dashboard | 모든 단계의 JSON | Streamlit 대시보드 (최종 산출물) + `labels.json` | 6~7주 |
-| M11. Evaluation | `baselines/` + 결과 | `output/eval.json` | 7주 |
-| ~~M8. Verifier~~ | — | — | **후속 범위** (부록 A) |
+| M1. Collector | CVE ID 또는 패치 커밋 URL/해시 | `cve.json` + `patches/`, `src/` | 1주차 (A: 기준선 전·후 소스 `sources/<CVE>/`) |
+| M2. Patch Analyzer | `cve.json` | `patch_analysis.json` (`pattern_type`, 추가된 Guard·검사, 플래그 조건) | 1주차 (B: 추출기·`patterns/<CVE>.json`) |
+| M3. Binder Path / Source | `patch_analysis.json` + AOSP 소스 | `call_path.json` | 2주차 (잠정) |
+| M4. Root Cause (LLM, 트랙 A) | M2·M3 결과 | `root_cause.json` (S·G·S 초안) | 2주차 (잠정). 1주차는 `ground_truth.json` 의 S·G·S 로 대신 |
+| M5. Pattern / Rule | M4·M2 결과 + 전·후 소스 | `pattern.json` + `rules/` | 1주차 (C: T1~T3 템플릿·차분 검증) |
+| M6. Scanner | 규칙 + 스캔 스냅샷 인덱스 | `candidates.json` | 2주차 (잠정) |
+| M7. Prioritizer | `candidates.json` | `ranked_candidates.json` | 2~3주차 (잠정) |
+| M9. Reporter | 위 JSON 전부 | `report.json`·`.md`·`.html` (+ `_public`) | 3주차 (잠정) |
+| M10. Web Dashboard | 모든 단계의 JSON | Streamlit 대시보드 (최종 산출물) + `labels.json` | 2~3주차 (잠정) |
+| M11. Evaluation | `baselines/` + 결과 | `output/eval.json` | 3~4주차 (잠정) |
+| ~~M8. Verifier~~ | - | - | **후속 범위** (부록 A) |
+
+1주차 = 11/24~11/30, 2주차 = 12/1~12/7, 3주차 = 12/8~12/14, 4주차 = 12/15~12/21. 2주차 이후는 1주차 주말 점검 후 확정 ([roadmap.md](roadmap.md)).
 
 모든 모듈은 **독립 실행 가능**(단계별 CLI 서브커맨드)하고, 앞 단계의 JSON 만 있으면 다음 단계를 다시 돌릴 수 있다.
 
@@ -65,18 +68,18 @@ CVE/패치 입력
 
 **P0 범위 (v0.4)**
 
-1. CVE·패치 커밋 수집, 다중 저장소, 같은 수정의 브랜치별 커밋 묶음 — F-101, F-103, F-104, F-107
-2. 지원 대상 데이터셋 구축과 수정 유형 집계 — F-108
-3. 변경 위치·보안 검사 추출, **수정 유형 분류**, 기능 플래그 처리 — F-201, F-202, F-203, F-205
-4. 제한된 진입점 경로 분석 (Binder 진입점·`APP_OBJECT` Source, 도달성 3값) — F-301, F-302
-5. 근거 기반 S·G·S 초안 (트랙 A) — F-401~F-403, F-405, F-406
-6. **탐지 규칙 생성 + 차분 오라클 검증** (T1 템플릿, T2 LLM 합성 L0) — F-501, F-503, F-504, F-507, F-508
-7. 스캔 스냅샷 기준 AOSP 스캔, 후보 순위화, 오탐 필터, LLM 질문 분해 검토 — F-601, F-604, F-701, F-702, F-704, F-705
-8. JSON·Markdown·HTML 보고서 — F-901, F-902, F-905
-9. 미리 생성된 JSON 을 보여주는 대시보드 (5개 탭 + 라벨) — D-1, D-3~D-7, D-9, F-1004, F-1005
-10. 평가: 규칙 채택률, Precision(라벨), 회고 검증(LLM 끔), Vanir 베이스라인 — F-1105, F-1106, F-1107, F-1108
+1. CVE·패치 커밋 수집, 다중 저장소, 같은 수정의 브랜치별 커밋 묶음 - F-101, F-103, F-104, F-107
+2. 지원 대상 데이터셋 구축과 수정 유형 집계 - F-108
+3. 변경 위치·보안 검사 추출, **수정 유형 분류**, 기능 플래그 처리 - F-201, F-202, F-203, F-205
+4. 제한된 진입점 경로 분석 (Binder 진입점·`APP_OBJECT` Source, 도달성 3값) - F-301, F-302
+5. 근거 기반 S·G·S 초안 (트랙 A) - F-401~F-403, F-405, F-406
+6. **탐지 규칙 생성 + 차분 오라클 검증** (T1 템플릿, T2 LLM 합성 L0) - F-501, F-503, F-504, F-507, F-508
+7. 스캔 스냅샷 기준 AOSP 스캔, 후보 순위화, 오탐 필터, LLM 질문 분해 검토 - F-601, F-604, F-701, F-702, F-704, F-705
+8. JSON·Markdown·HTML 보고서 - F-901, F-902, F-905
+9. 미리 생성된 JSON 을 보여주는 대시보드 (5개 탭 + 라벨) - D-1, D-3~D-7, D-9, F-1004, F-1005
+10. 평가: 규칙 채택률, Precision(라벨), 회고 검증(LLM 끔), Vanir 베이스라인 - F-1105, F-1106, F-1107, F-1108
 
-### M1. Collector — CVE/패치 수집
+### M1. Collector - CVE/패치 수집
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -87,19 +90,19 @@ CVE/패치 입력
 | F-105 | 예외 처리 | 잘못된 링크, 비공개 버그 | P1 |
 | F-106 | 캐시 | 모든 커밋의 diff·전/후 소스가 실제로 있을 때만 재다운로드 생략 | P1 |
 | F-107 | 같은 수정 묶음 | `Change-Id`·`Merged-In` 으로 브랜치별 같은 수정을 묶고 대표 커밋 1개 분석 (L6) | P0 |
-| F-108 | 데이터셋 | 2023~2025 보안 공지의 AOSP 커밋 수집 → `fix_kind` 1차 분류 → 트랙별·범위 밖 사유별 개수 (`output/dataset.csv`) | P0 |
+| F-108 | 데이터셋 | 2023~2025 보안 공지의 AOSP 커밋 수집 → `pattern_type` 1차 분류 → 유형별·범위 밖 사유별 개수 (`output/dataset.csv`) | P0 |
 
-### M2. Patch Analyzer — 패치 분석
+### M2. Patch Analyzer - 패치 분석
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
 | F-201 | 변경 위치 추출 | Tree-sitter 로 변경된 클래스·메서드 식별, hunk 별 전/후 코드(`CodeRef`) | P0 |
-| F-202 | **수정 유형 분류** | `fix_kind` = `ADDED_GUARD`(트랙 A) · `ADDED_CHECK`(B) · `API_REPLACE`(C) · `NOVEL`(T2/T3) · 범위 밖 사유. 새 헬퍼 메서드 안 검사까지 한 단계 추적 | P0 |
-| F-203 | 보안 검사 인식 | Guard 카탈로그(PERMISSION·UID·PACKAGE·APPOPS·CROSS_USER·URI_USER) 기반 탐지, `clearCallingIdentity` 구간 처리 | P0 |
+| F-202 | **수정 유형 분류** | `pattern_type` = `GUARD_ADDITION`(트랙 A, 템플릿 T1) · `PRECONDITION_ADDITION`(B, T2) · `API_REPLACEMENT`(C, T3) · `OTHER`. **분류 불가 시 추측하지 않고 `OTHER`** (이전 `NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` + 사유). 같은 커밋의 헬퍼 메서드 안 검사까지 2단계 추적 | P0 |
+| F-203 | 보안 검사 인식 | Guard 사전([`config/guard_dictionary.json`](../config/guard_dictionary.json): PERMISSION · CALLER_UID · UID_PACKAGE_BINDING · APP_OPS · CROSS_USER · URI_USER_BOUNDARY · BINDER_IDENTITY, 보안 목적이 같으면 같은 유형으로 정규화) 기반 탐지, `clearCallingIdentity` 구간 처리 | P0 |
 | F-205 | 기능 플래그 처리 | `Flags.xxx()` 조건 감지 → "플래그 켜짐" 기준 실효 after 뷰 (L2) | P0 |
 | F-204 | 기준선 비교 | 수동 정답과 변경 메서드 일치율 | P1 |
 
-### M3. Binder Path / Source — 진입점 경로 분석
+### M3. Binder Path / Source - 진입점 경로 분석
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -109,7 +112,7 @@ CVE/패치 입력
 | F-303 | 노출 여부 판정 | 서비스 등록·권한 요구 여부 | P1 |
 | F-304 | 경로 시각화 | mermaid 다이어그램 | P2 |
 
-### M4. Root Cause — LLM 보조 S·G·S 초안 (트랙 A)
+### M4. Root Cause - LLM 보조 S·G·S 초안 (트랙 A)
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -122,7 +125,7 @@ CVE/패치 입력
 
 트랙 B·C 는 패치 diff 자체가 S·G·S 라 LLM 을 쓰지 않는다.
 
-### M5. Pattern / Rule — 패치 기반 규칙 생성·검증
+### M5. Pattern / Rule - 패치 기반 규칙 생성·검증
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -135,7 +138,7 @@ CVE/패치 입력
 | F-510 | 패턴 라이브러리 | 사람 승인된 생성 규칙을 파일로 저장해 다음 CVE 라우팅에 재사용 (재학습 아님) | P1 |
 | F-511 | T3 탐색형 | 규칙 생성 실패 시 불변식·앵커 API 로 후보를 좁혀 M7 검증 계층으로 판정 (낮은 신뢰, 지표 분리) | P1 |
 
-### M6. Scanner — AOSP 유사 코드 스캔
+### M6. Scanner - AOSP 유사 코드 스캔
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -145,7 +148,7 @@ CVE/패치 입력
 | F-602 | 중복 제거 | 같은 위치·원인 병합 | P1 |
 | F-603 | 증분 스캔 | 특정 디렉터리·서비스만 | P2 |
 
-### M7. Prioritizer — 후보 선별·우선순위화
+### M7. Prioritizer - 후보 선별·우선순위화
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -156,7 +159,7 @@ CVE/패치 입력
 | F-706 | 교차 모델 비판 | `likely` 후보만 다른 계열 LLM 이 반박 시도 → 근거 있는 반박이면 `unsure` | P1 |
 | F-703 | 수동 라벨링 | TP/FP/보류, 라벨 판정 기준표 적용, 다음 실행에 반영 | P0 |
 
-### M9. Reporter — 보고서
+### M9. Reporter - 보고서
 
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
@@ -167,7 +170,7 @@ CVE/패치 입력
 | F-904 | 공개용 마스킹 | 미공개 후보의 코드·위치·경로를 제거한 `_public` | P1 |
 | F-906 | 한/영 전환 | 템플릿 2종 | P1 |
 
-### M10. Web Dashboard — 최종 산출물
+### M10. Web Dashboard - 최종 산출물
 
 Streamlit 단독. 미리 생성된 JSON 만 읽고, 쓰는 것은 `labels.json` 뿐.
 
@@ -206,30 +209,47 @@ Streamlit 단독. 미리 생성된 JSON 만 읽고, 쓰는 것은 `labels.json` 
 
 ## 4. 공통 데이터 (JSON 스키마)
 
-정본은 [`aosp1day/schemas.py`](../aosp1day/schemas.py) 와 [design.md](design.md) §2.1 (v0.4 필드 추가분). 이 장은 요약이다. 산출물은 `output/<CVE-ID>/` 아래 (평가는 `output/eval.json`, 데이터셋은 `output/dataset.csv`).
+정본은 [`aosp1day/schemas.py`](../aosp1day/schemas.py) 와 [design.md](design.md) §2.1 (v0.4 필드 추가분). 이 장은 요약이다.
+
+**[v0.5] 1주차 공통 형식.** 1주차 E2E 는 단계별 산출물 대신 아래 공통 형식 하나로 연결한다 (`patterns/<CVE>.json`, `baselines/ground_truth.json`). 유형마다 필요한 필드만 채우고 나머지는 `null`. 위치가 여러 곳일 수 있는 값(`sink`·`precondition`·`target_api`·`unsafe_api`·`safe_api`)은 리스트.
 
 ```jsonc
-// meta — 재현성·추적성
+{ "patch": { "cve": "", "commit": "", "parent_commit": "", "repository": "",
+             "changed_files": [], "support_status": "READY|NEEDS_WORK|HISTORICAL|EXCLUDED", "exclude_reason": "" },
+  "vuln_pattern": { "pattern_type": "GUARD_ADDITION|PRECONDITION_ADDITION|API_REPLACEMENT|OTHER",
+                    "source": null, "guard": null, "sink": null,          // GUARD_ADDITION: Source-Guard-Sink
+                    "precondition": null, "target_api": null,             // PRECONDITION_ADDITION
+                    "unsafe_api": null, "safe_api": null,                 // API_REPLACEMENT
+                    "evidence": [] },
+  "rule": { "template_id": "T1|T2|T3", "rule_body": "",
+            "before_target_match": false, "after_target_match": false,
+            "after_other_match_count": 0, "validation_status": "PASS|WARN|FAIL" } }
+```
+
+아래는 단계별 산출물(2주차 이후) 요약이다. 산출물은 `output/<CVE-ID>/` 아래 (평가는 `output/eval.json`, 데이터셋은 `output/dataset.csv`).
+
+```jsonc
+// meta - 재현성·추적성
 { "schema_version": "0.4", "generated_at": "", "tool_version": "", "stage": "",
   "inputs": { "<입력 산출물>": "<sha256>" } }
 
-// CodeRef — revision = 이 코드가 실제로 있는 커밋 (before: parent / after: 패치 / aosp: 스캔 스냅샷)
+// CodeRef - revision = 이 코드가 실제로 있는 커밋 (before: parent / after: 패치 / aosp: 스캔 스냅샷)
 { "revision": "", "patch_commit": "", "file": "", "side": "before|after|aosp",
   "start_line": 0, "end_line": 0, "snippet": "", "diff_path": "", "class": "", "method": "" }
 
 // Evidence = CodeRef + claim / Claim = text + [Evidence]
 
-// patch_analysis.json (M2) — 주요 필드
-{ "changes": [{ "id": "chg-1", "method": "", "fix_kind": "ADDED_GUARD|ADDED_CHECK|API_REPLACE|NOVEL|CONDITION_CHANGE|BYPASS|OTHER",
+// patch_analysis.json (M2) - 주요 필드
+{ "changes": [{ "id": "chg-1", "method": "", "pattern_type": "GUARD_ADDITION|PRECONDITION_ADDITION|API_REPLACEMENT|OTHER",
     "added_guards": [Evidence], "sink_candidates": [Evidence], "flag_gated": ["Flags.xxx()"],
     "hunks": [{ "before": CodeRef, "after": CodeRef }] }] }
 
-// pattern.json (M5) — 주요 필드
+// pattern.json (M5) - 주요 필드
 { "patterns": [{ "pattern_id": "", "track": "A|B|C|T2|T3", "rule_origin": "template|synthesized|exploratory",
     "adopted": true, "tags": ["seed_only|llm_generalized|broad|narrow"],
     "attempts": [{ "origin": "seed|llm", "check": { "target_hit": true, "patched_hits": 0, "control_hits": 0, "passed": true }, "feedback": "" }] }] }
 
-// candidates.json / ranked_candidates.json — 주요 필드
+// candidates.json / ranked_candidates.json - 주요 필드
 { "candidates": [{ "id": "", "pattern_id": "", "location": CodeRef, "call_path": [CodeRef],
     "missing_guard": "", "reachability": "resolved|partial|unknown", "scan_snapshot": "",
     "status": "open|superseded|reported", "flag_gated": false,
@@ -266,15 +286,18 @@ Streamlit 단독. 미리 생성된 JSON 만 읽고, 쓰는 것은 `labels.json` 
 
 ## 7. 남은 논의
 
-- [ ] 범위 확장(v2.3) 확정 — 팀 리뷰 (PR #31)
-- [ ] 기준선 CVE 5건 확정
-- [ ] 시험 일정 반영한 5~6주 재배분 (L8)
+- [ ] 범위 확장(v2.3) 확정 - 팀 리뷰 (PR #31)
+- [x] 기준선 CVE 확정 → CVE-2023-40105 · CVE-2024-0037 (v0.5)
+- [ ] `ground_truth.json` 셋 합의
+- [ ] 차분 검증 N값 (WARN 기준)
+- [ ] 템플릿 이름 겹침 정리: 1주차 T1~T3 vs [novel-patterns.md](novel-patterns.md) T2(LLM 합성)·T3(탐색형)
+- [ ] 2주차 방향·담당 (1주차 주말 점검: 전체 스캔 vs 데이터·분석기 보완)
 - [ ] LLM provider·model 선정, CVE 당 호출 상한
 - [ ] `max_control_hits`·`max_scan_hits` 초기값
 
 ---
 
-## 부록 A. 후속 범위 — 동적 재현 (이번 프로젝트 제외)
+## 부록 A. 후속 범위 - 동적 재현 (이번 프로젝트 제외)
 
 v0.3.1 까지 P0 였던 아래 항목은 11/11 피드백(재현은 4주 안에 어렵다)과 11/23 리뷰에 따라 **이번 프로젝트의 산출물·평가·일정에서 제외**한다. 프로젝트 이후 확장할 때 출발점으로 쓰도록 코드 뼈대(`aosp1day/stages/m08_harness.py`, `m08_verifier.py`)와 스키마(`TestCase`, `ValueSpec`, `ExpectedResult`, `Verification`)만 저장소에 남긴다.
 
