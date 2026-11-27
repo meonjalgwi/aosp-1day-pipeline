@@ -1,0 +1,191 @@
+{
+  "schema_version": "0.1",
+  "description": "기준선 2건의 수동 분석 정답. 추출기 출력(patterns/<CVE>.json)과 C 규칙 템플릿·차분 검증의 초기 입력으로 쓴다. 줄 번호는 Gitiles 원본 파일 기준 (before = parent, after = 패치 커밋).",
+  "analyst": "김나연 (zv9uvr)",
+  "analyzed_at": "2026-11-28",
+  "guard_dictionary": "config/guard_dictionary.json",
+  "cases": [
+    {
+      "cve_id": "CVE-2023-40105",
+      "bulletin": "2023-11-01",
+      "repo": "platform/frameworks/base",
+      "commit": "935eb5ed6be35860a99ea242fb753f687d54a308",
+      "parent": "08f9c38373848953f04f73f77d4e7aaa441e3421",
+      "commit_url": "https://android.googlesource.com/platform/frameworks/base/+/935eb5ed6be35860a99ea242fb753f687d54a308",
+      "language": "java",
+      "fix_kind": "ADDED_GUARD",
+      "track": "A",
+      "added_guard_types": ["UID_PACKAGE_BINDING"],
+      "changed_methods": [
+        {
+          "file": "services/core/java/com/android/server/am/ActivityManagerService.java",
+          "class": "ActivityManagerService",
+          "signature": "backupAgentCreated(String,IBinder,int)",
+          "status": "modified",
+          "role": "changed",
+          "fix_kind": "ADDED_GUARD",
+          "before": {"start_line": 12918, "end_line": 12952},
+          "after": {"start_line": 12934, "end_line": 12971},
+          "added_guards": [
+            {"type": "UID_PACKAGE_BINDING", "api": "enforceCallingPackage", "line": 12938,
+             "via_helper": "enforceCallingPackage → getPackageUid"}
+          ],
+          "notes": "handleIncomingUser(CROSS_USER) 는 패치 전에도 있었다. 인자만 Binder.getCallingUid() → callingUid 로 바뀜 (Guard 추가 아님)."
+        },
+        {
+          "file": "services/core/java/com/android/server/am/ActivityManagerService.java",
+          "class": "ActivityManagerService",
+          "signature": "enforceCallingPackage(String,int)",
+          "status": "added",
+          "role": "helper",
+          "fix_kind": "ADDED_GUARD",
+          "before": null,
+          "after": {"start_line": 2991, "end_line": 3005},
+          "added_guards": [
+            {"type": "UID_PACKAGE_BINDING", "api": "getPackageUid", "line": 3000}
+          ],
+          "notes": "새 헬퍼. getPackageUid(packageName, 0, userId) != callingUid 이면 SecurityException."
+        }
+      ],
+      "non_method_changes": [],
+      "source": {
+        "kind": "BINDER_PARAM",
+        "detail": "IActivityManager.backupAgentCreated 의 agentPackageName — 호출자가 패키지 이름을 직접 넘긴다"
+      },
+      "guard": {
+        "type": "UID_PACKAGE_BINDING",
+        "detail": "getPackageUid(agentPackageName) == callingUid 확인 (enforceCallingPackage)"
+      },
+      "sink": {
+        "call": "agentConnectedForUser",
+        "snippet": "bm.agentConnectedForUser(userId, agentPackageName, agent);",
+        "before_line": 12943,
+        "after_line": 12962,
+        "detail": "clearCallingIdentity 구간 안에서 호출자가 준 패키지 이름·Binder 로 백업 매니저에 연결"
+      },
+      "security_invariant": "호출자가 넘긴 패키지 이름은 호출자 UID 소유임을 확인한 뒤에만 그 이름으로 시스템 동작을 수행한다.",
+      "expected_oracle": {
+        "before_hits": [{"file": "services/core/java/com/android/server/am/ActivityManagerService.java",
+                         "method": "backupAgentCreated(String,IBinder,int)", "sink_line": 12943}],
+        "after_must_not_hit": [{"file": "services/core/java/com/android/server/am/ActivityManagerService.java",
+                                "method": "backupAgentCreated(String,IBinder,int)", "sink_line": 12962}]
+      },
+      "pitfalls": [
+        "추가된 Guard 가 새 헬퍼 안에 있다 → 헬퍼 본문을 한 단계 따라가야 UID_PACKAGE_BINDING 이 보인다.",
+        "백업 대상 이름 비교(mBackupTargets)는 패치 전에도 있었지만 '누가 보냈는가'를 보지 않는다 — Guard 로 세지 않는다."
+      ]
+    },
+    {
+      "cve_id": "CVE-2024-0037",
+      "bulletin": "2024-02-01",
+      "repo": "platform/frameworks/base",
+      "commit": "55fc00a0788ea0995fe0851616b9ac21710a2931",
+      "parent": "3e88d987235f5a2acd50a9b6bad78dbbf39cb079",
+      "commit_url": "https://android.googlesource.com/platform/frameworks/base/+/55fc00a0788ea0995fe0851616b9ac21710a2931",
+      "language": "java",
+      "fix_kind": "ADDED_GUARD",
+      "track": "A",
+      "added_guard_types": ["URI_USER_BOUNDARY"],
+      "changed_methods": [
+        {
+          "file": "services/autofill/java/com/android/server/autofill/Helper.java",
+          "class": "Helper",
+          "signature": "checkRemoteViewUriPermissions(int,RemoteViews)",
+          "status": "modified",
+          "role": "changed",
+          "fix_kind": "API_REPLACE",
+          "before": {"start_line": 91, "end_line": 102},
+          "after": {"start_line": 93, "end_line": 104},
+          "added_guards": [],
+          "notes": "getUserIdFromUri(uri) → getUserIdFromUri(uri, userId). 사용자 정보가 없는 URI 의 기본 사용자를 호출 쪽 userId 로 맞춤 — 기존 Guard 를 보강, 새 Guard 아님."
+        },
+        {
+          "file": "services/autofill/java/com/android/server/autofill/Helper.java",
+          "class": "Helper",
+          "signature": "sanitizeSlice(Slice)",
+          "status": "added",
+          "role": "helper",
+          "fix_kind": "ADDED_GUARD",
+          "before": null,
+          "after": {"start_line": 130, "end_line": 170},
+          "added_guards": [
+            {"type": "URI_USER_BOUNDARY", "api": "getUserIdFromUri", "line": 161}
+          ],
+          "notes": "새 헬퍼. Slice 의 이미지 Icon 이 URI 타입이면 getUserIdFromUri(uri, userId) != userId 일 때 null."
+        },
+        {
+          "file": "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java",
+          "class": "RemoteInlineSuggestionViewConnector",
+          "signature": "renderSuggestion(int,int,IInlineSuggestionUiCallback)",
+          "status": "modified",
+          "role": "changed",
+          "fix_kind": "ADDED_GUARD",
+          "before": {"start_line": 79, "end_line": 93},
+          "after": {"start_line": 73, "end_line": 91},
+          "added_guards": [
+            {"type": "URI_USER_BOUNDARY", "api": "sanitizeSlice", "line": 80,
+             "via_helper": "sanitizeSlice → getUserIdFromUri"}
+          ],
+          "notes": "인라인 제안 Slice 를 렌더링하기 전에 검사 추가 (경로 1: Inline Suggestions)."
+        },
+        {
+          "file": "services/autofill/java/com/android/server/autofill/ui/SaveUi.java",
+          "class": "SaveUi",
+          "signature": "applyCustomDescription(Context,View,ValueFinder,SaveInfo)",
+          "status": "modified",
+          "role": "changed",
+          "fix_kind": "ADDED_GUARD",
+          "before": {"start_line": 380, "end_line": 514},
+          "after": {"start_line": 380, "end_line": 515},
+          "added_guards": [
+            {"type": "URI_USER_BOUNDARY", "api": "sanitizeRemoteView", "line": 447,
+             "via_helper": "sanitizeRemoteView → checkRemoteViewUriPermissions → getUserIdFromUri"}
+          ],
+          "notes": "같은 메서드의 template(387줄)에는 이미 sanitizeRemoteView 가 있었고, batch update 의 templateUpdates 에만 빠져 있었다 — '같은 Guard 가 다른 경로에 누락' 사례 (경로 2: SaveUI template)."
+        }
+      ],
+      "non_method_changes": [
+        {"file": "services/autofill/java/com/android/server/autofill/Helper.java", "kind": "import"},
+        {"file": "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java", "kind": "import"},
+        {"file": "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java", "kind": "class_member",
+         "notes": "필드 어노테이션 줄바꿈만 바뀜 (의미 변화 없음)"}
+      ],
+      "source": {
+        "kind": "APP_OBJECT",
+        "detail": "Autofill 서비스(다른 앱)가 준 InlinePresentation 의 Slice, SaveInfo CustomDescription BatchUpdates 의 RemoteViews — 안의 Icon/URI"
+      },
+      "guard": {
+        "type": "URI_USER_BOUNDARY",
+        "detail": "URI 의 사용자 정보(getUserIdFromUri)가 현재 사용자와 같은지 확인 (sanitizeSlice / sanitizeRemoteView)"
+      },
+      "sink": [
+        {"method": "renderSuggestion(int,int,IInlineSuggestionUiCallback)", "call": "renderSuggestion",
+         "snippet": "mRemoteRenderService.renderSuggestion(callback, mInlinePresentation, width, height, ...)",
+         "before_line": 88, "after_line": 86, "detail": "검사 없이 Slice 를 렌더러에 넘김"},
+        {"method": "applyCustomDescription(Context,View,ValueFinder,SaveInfo)", "call": "reapply",
+         "snippet": "templateUpdates.reapply(context, customSubtitleView);",
+         "before_line": 449, "after_line": 450, "detail": "검사 없이 RemoteViews 를 system UI 에 적용"}
+      ],
+      "security_invariant": "다른 앱이 준 객체 안의 URI 는 현재 사용자 영역 것임을 확인한 뒤에만 시스템 쪽에서 로드·렌더링한다.",
+      "expected_oracle": {
+        "before_hits": [
+          {"file": "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java",
+           "method": "renderSuggestion(int,int,IInlineSuggestionUiCallback)", "sink_line": 88},
+          {"file": "services/autofill/java/com/android/server/autofill/ui/SaveUi.java",
+           "method": "applyCustomDescription(Context,View,ValueFinder,SaveInfo)", "sink_line": 449}
+        ],
+        "after_must_not_hit": [
+          {"file": "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java",
+           "method": "renderSuggestion(int,int,IInlineSuggestionUiCallback)", "sink_line": 86},
+          {"file": "services/autofill/java/com/android/server/autofill/ui/SaveUi.java",
+           "method": "applyCustomDescription(Context,View,ValueFinder,SaveInfo)", "sink_line": 450}
+        ]
+      },
+      "pitfalls": [
+        "SaveUi.applyCustomDescription 은 패치 전에도 같은 메서드 안 다른 값(template)에 Guard 가 있었다 → 메서드 단위가 아니라 호출 지점(값) 단위로 봐야 패치 전 탐지가 된다.",
+        "Guard 가 다른 파일의 헬퍼(Helper.sanitizeSlice / sanitizeRemoteView) 안에 있다 → 파일을 넘어 헬퍼를 따라가야 한다.",
+        "checkRemoteViewUriPermissions 의 인자 추가는 기존 검사 보강이라 이 CVE 의 대표 유형으로 세지 않는다."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "version": "0.1",
+  "description": "Guard 사전 초안. 보안 목적이 같으면 같은 유형으로 정규화한다. apis = 호출 자체가 보안 검사인 API, condition_apis = 조건식(if·비교) 안에서 쓰일 때만 검사로 보는 API. 이름은 메서드 단순 이름(Receiver 제외)으로 맞춘다.",
+  "priority": [
+    "UID_PACKAGE_BINDING",
+    "URI_USER_BOUNDARY",
+    "PERMISSION",
+    "APP_OPS",
+    "CROSS_USER",
+    "CALLER_UID",
+    "BINDER_IDENTITY"
+  ],
+  "types": {
+    "PERMISSION": {
+      "purpose": "호출자가 특정 권한을 가졌는지 확인",
+      "apis": [
+        "enforceCallingPermission",
+        "enforceCallingOrSelfPermission",
+        "enforcePermission",
+        "checkCallingPermission",
+        "checkCallingOrSelfPermission",
+        "checkPermission",
+        "checkComponentPermission",
+        "checkCallingPermissionForDataDelivery",
+        "checkCallingOrSelfPermissionForDataDelivery",
+        "checkPermissionForDataDelivery",
+        "enforcePermissionTree",
+        "isPermissionGranted"
+      ],
+      "condition_apis": [],
+      "legacy_names": ["PERMISSION"]
+    },
+    "CALLER_UID": {
+      "purpose": "호출자 UID/AppId 를 특정 값(시스템·shell·자기 자신)과 직접 비교",
+      "apis": [
+        "enforceSystemOrRoot",
+        "enforceShell",
+        "isCallerSystem",
+        "isCallerShell",
+        "isSystemUid"
+      ],
+      "condition_apis": [
+        "getCallingUid",
+        "getCallingAppId",
+        "getAppId"
+      ],
+      "legacy_names": ["UID"]
+    },
+    "UID_PACKAGE_BINDING": {
+      "purpose": "호출자가 넘긴 패키지 이름이 실제로 호출자 UID 소유인지 확인",
+      "apis": [
+        "getPackageUid",
+        "getPackageUidAsUser",
+        "checkPackage",
+        "verifyCallingPackage",
+        "enforceCallingPackage",
+        "isSameApp",
+        "isCallerPackage",
+        "checkCallingPackage",
+        "isUidOwnedByPackage"
+      ],
+      "condition_apis": [],
+      "suppresses": ["CALLER_UID"],
+      "legacy_names": ["PACKAGE"]
+    },
+    "APP_OPS": {
+      "purpose": "AppOps 허용 여부 확인·기록",
+      "apis": [
+        "noteOp",
+        "noteOpNoThrow",
+        "noteProxyOp",
+        "noteProxyOpNoThrow",
+        "checkOp",
+        "checkOpNoThrow",
+        "unsafeCheckOp",
+        "unsafeCheckOpNoThrow",
+        "unsafeCheckOpRaw",
+        "startOp",
+        "startOpNoThrow",
+        "startProxyOp"
+      ],
+      "condition_apis": [],
+      "legacy_names": ["APPOPS"]
+    },
+    "CROSS_USER": {
+      "purpose": "다른 사용자(userId)를 대상으로 한 요청에 교차 사용자 권한을 요구",
+      "apis": [
+        "handleIncomingUser",
+        "enforceCrossUserPermission",
+        "enforceCrossUserOrProfilePermission",
+        "checkCrossUserPermission",
+        "resolveCallingUserId",
+        "resolveCallingUserEnforcingPermissions",
+        "isSameProfileGroup",
+        "isSameUser"
+      ],
+      "condition_apis": [
+        "getCallingUserId"
+      ],
+      "legacy_names": ["CROSS_USER"]
+    },
+    "URI_USER_BOUNDARY": {
+      "purpose": "앱이 넘긴 URI 가 현재 사용자 영역 것인지(또는 읽을 권한이 있는지) 확인",
+      "apis": [
+        "getUserIdFromUri",
+        "getEncodedUserInfo",
+        "checkGrantUriPermission",
+        "checkGrantUriPermission_ignoreNonSystem",
+        "checkUriPermission",
+        "checkCallingUriPermission",
+        "enforceCallingUriPermission",
+        "validateIconUserBoundary"
+      ],
+      "condition_apis": [],
+      "legacy_names": ["URI_USER"]
+    },
+    "BINDER_IDENTITY": {
+      "purpose": "Binder 호출자 신원 구간을 바꿈(clearCallingIdentity). 검사 자체가 아니라 신원 경계이므로 추가되면 기록하되, 이것만으로는 ADDED_GUARD 로 보지 않는다",
+      "apis": [
+        "clearCallingIdentity",
+        "restoreCallingIdentity",
+        "withCleanCallingIdentity"
+      ],
+      "condition_apis": [],
+      "identity_only": true,
+      "legacy_names": []
+    }
+  },
+  "ignore_calls": [
+    "d", "v", "i", "w", "e", "wtf", "println", "printStackTrace",
+    "append", "toString", "valueOf", "format", "equals", "hashCode"
+  ],
+  "ignore_receivers": ["Slog", "Log", "EventLog", "Trace", "pw", "sb"]
+}
