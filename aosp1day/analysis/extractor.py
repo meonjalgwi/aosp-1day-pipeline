@@ -1,19 +1,20 @@
 """패치 전·후 소스에서 수정 패턴을 뽑는 추출기 (5주차 B, F-201~F-203).
 
 입력: ``sources/<CVE>/{before,after}/<저장소 상대 경로>.java`` (+ 있으면 ``sources/<CVE>/patch.diff``)
-출력: ``patterns/<CVE>.json`` — 변경 클래스·메서드, 추가·삭제된 조건문, 호출 API 변화,
-      추가된 보안 검사(Guard 사전 기준), 수정 유형(fix_kind), C 규칙 템플릿용 sink 후보.
+출력: ``patterns/<CVE>.json`` — 팀 공통 JSON 형식 (``patch`` / ``vuln_pattern`` / ``rule``).
+      ``rule`` 은 C(규칙 템플릿·차분 검증)가 채운다. 추출 세부 결과(변경 메서드, 추가·삭제 조건문,
+      호출 API 변화, 추가된 보안 검사, sink 후보)는 ``analysis`` 에 둔다.
 
 판정은 전부 결정적 규칙이다 (LLM 없음). 분류할 수 없으면 추측하지 않고 ``OTHER``.
 
-fix_kind 규칙 (변경 메서드 하나 기준, 위에서부터 처음 맞는 것):
-  1. ADDED_GUARD — 패치 후 Guard 호출 지점(유형, 호출 이름)이 패치 전보다 많아짐.
+pattern_type 규칙 (변경 메서드 하나 기준, 위에서부터 처음 맞는 것):
+  1. GUARD_ADDITION — 패치 후 Guard 호출 지점(유형, 호출 이름)이 패치 전보다 많아짐.
      같은 변경 묶음(커밋)에 정의된 헬퍼 메서드는 ``follow_depth`` 단계까지 따라가 본문의 Guard 를 센다.
      BINDER_IDENTITY(clearCallingIdentity 류)만 늘어난 것은 Guard 추가로 보지 않는다.
-  2. ADDED_CHECK — 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 if 가 추가됨.
-  3. API_REPLACE — 같은 이름의 호출이 인자 수만 바뀌어 빠지고 들어옴.
+  2. PRECONDITION_ADDITION — 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 if 가 추가됨.
+  3. API_REPLACEMENT — 같은 이름의 호출이 인자 수만 바뀌어 빠지고 들어옴.
   4. OTHER — 그 밖 (형식만 바뀐 경우 ``formatting_only`` 표시).
-CVE 전체 fix_kind 는 헬퍼가 아닌 변경 중 가장 높은 것 (ADDED_GUARD > ADDED_CHECK > API_REPLACE > OTHER).
+CVE 전체 pattern_type 는 헬퍼가 아닌 변경 중 가장 높은 것 (GUARD_ADDITION > PRECONDITION_ADDITION > API_REPLACEMENT > OTHER).
 """
 
 from __future__ import annotations
@@ -28,8 +29,9 @@ from .diffparse import FileDiff, diff_files, parse_unified
 from .guards import GuardDictionary
 from .java_ast import Call, Method, normalize, parse_methods
 
-FIX_KINDS = ("ADDED_GUARD", "ADDED_CHECK", "API_REPLACE", "OTHER")
-TRACK_OF = {"ADDED_GUARD": "A", "ADDED_CHECK": "B", "API_REPLACE": "C", "OTHER": None}
+FIX_KINDS = ("GUARD_ADDITION", "PRECONDITION_ADDITION", "API_REPLACEMENT", "OTHER")
+# 패치 유형 -> C 규칙 템플릿 (T1 Guard 없는 Sink, T2 API 앞 검사 누락, T3 위험 API 잔존)
+TEMPLATE_OF = {"GUARD_ADDITION": "T1", "PRECONDITION_ADDITION": "T2", "API_REPLACEMENT": "T3", "OTHER": None}
 SCHEMA_VERSION = "0.1"
 
 
@@ -55,7 +57,8 @@ class Extractor:
 
     # --- 진입점 ------------------------------------------------------------
 
-    def extract(self, sources: Path | str, cve_id: str = "", commit: str = "", parent: str = "") -> dict:
+    def extract(self, sources: Path | str, cve_id: str = "", commit: str = "", parent: str = "",
+                repository: str = "") -> dict:
         sources = Path(sources)
         before_root, after_root = sources / "before", sources / "after"
         diffs = self._load_diffs(sources, before_root, after_root)
@@ -83,23 +86,38 @@ class Extractor:
         self._mark_helpers(changes)
 
         primary = [c for c in changes if c["role"] != "helper"] or changes
-        kind = next((k for k in FIX_KINDS if any(c["fix_kind"] == k for c in primary)), "OTHER")
+        kind = next((k for k in FIX_KINDS if any(c["pattern_type"] == k for c in primary)), "OTHER")
         guard_types = self.gd.order({g["type"] for c in changes for g in c["added_guards"]
                                      if not self.gd.is_identity_only(g["type"])})
         return {
             "schema_version": SCHEMA_VERSION,
-            "cve_id": cve_id,
-            "commit": commit,
-            "parent": parent,
-            "generator": "aosp1day.analysis.extractor",
-            "sources": str(sources),
-            "fix_kind": kind,
-            "track": TRACK_OF[kind],
-            "added_guard_types": guard_types,
-            "changes": changes,
-            "non_method_changes": non_method,
-            "skipped_files": skipped,
-            "pattern_hint": self._pattern_hint(kind, guard_types, changes),
+            "patch": {
+                "cve": cve_id,
+                "commit": commit,
+                "parent_commit": parent,
+                "repository": repository,
+                "changed_files": sorted(diffs),
+                "support_status": "",        # A 가 cve_inventory.json 에서 정함 (READY 등)
+                "exclude_reason": "",
+            },
+            "vuln_pattern": self._vuln_pattern(kind, guard_types, changes),
+            "rule": {
+                "template_id": "",           # 이하 C 가 채움
+                "rule_body": "",
+                "before_target_match": False,
+                "after_target_match": False,
+                "after_other_match_count": 0,
+                "validation_status": "",
+            },
+            "analysis": {
+                "generator": "aosp1day.analysis.extractor",
+                "sources": str(sources),
+                "suggested_template": TEMPLATE_OF[kind],
+                "added_guard_types": guard_types,
+                "changes": changes,
+                "non_method_changes": non_method,
+                "skipped_files": skipped,
+            },
         }
 
     # --- 입력 ---------------------------------------------------------------
@@ -235,14 +253,14 @@ class Extractor:
         real_guards = [g for g in added_g if not self.gd.is_identity_only(g.type)]
         early = [x for x in add_conds if x.early_exit]
         if real_guards:
-            kind = "ADDED_GUARD"
+            kind = "GUARD_ADDITION"
         elif early:
-            kind = "ADDED_CHECK"
+            kind = "PRECONDITION_ADDITION"
         elif c["replaced_calls"]:
-            kind = "API_REPLACE"
+            kind = "API_REPLACEMENT"
         else:
             kind = "OTHER"
-        c["fix_kind"] = kind
+        c["pattern_type"] = kind
         c["formatting_only"] = bool(a and b and normalize(a.text) == normalize(b.text))
         c["role"] = "changed"
 
@@ -307,19 +325,52 @@ class Extractor:
             if c["status"] == "added" and c["method"] in called:
                 c["role"] = "helper"
 
-    def _pattern_hint(self, kind: str, guard_types: list[str], changes: list[dict]) -> dict:
-        main = [c for c in changes if c["role"] != "helper" and c["fix_kind"] == kind]
-        return {
-            "track": TRACK_OF[kind],
-            "guard_types": guard_types,
-            "guarded_methods": [f'{c["class"]}.{c["signature"]}' for c in main],
-            "guard_apis": sorted({g["api"] for c in main for g in c["added_guards"]}),
-            "sinks": [
-                {"change": c["id"], "method": c["method"], **c["sink_candidates"][0]}
-                for c in main if c["sink_candidates"]
-            ],
-            "note": "C 규칙 템플릿 초기 입력용 요약. 사람이 ground_truth.json 과 비교해 확인한다.",
-        }
+    def _vuln_pattern(self, kind: str, guard_types: list[str], changes: list[dict]) -> dict:
+        """공통 형식 vuln_pattern. 유형마다 필요한 필드만 채우고 나머지는 null.
+
+        위치가 여러 곳일 수 있는 값(sink, precondition, target_api, unsafe_api, safe_api)은 리스트.
+        source 는 정적으로 확정하지 않는다: 변경 메서드 파라미터를 후보로만 남기고, 확정은 ground_truth 에서 한다.
+        """
+        main = [c for c in changes if c["role"] != "helper" and c["pattern_type"] == kind]
+        vp: dict[str, Any] = {"pattern_type": kind, "source": None, "guard": None, "sink": None,
+                              "precondition": None, "target_api": None,
+                              "unsafe_api": None, "safe_api": None, "evidence": []}
+
+        def loc(c, **kw):
+            return {"file": c["file"], "method": c["signature"], **kw}
+
+        def top_sinks():
+            return [loc(c, call=s["call"], line=s["line"], snippet=s["snippet"], reason=s["reason"])
+                    for c in main for s in c["sink_candidates"][:1]]
+
+        if kind == "GUARD_ADDITION":
+            vp["source"] = {"status": "candidate",
+                            "candidates": [loc(c, params=c["params"]) for c in main]}
+            hits = [(c, g) for c in main for g in c["added_guards"] if not self.gd.is_identity_only(g["type"])]
+            vp["guard"] = {"types": guard_types, "apis": sorted({g["api"] for _, g in hits}),
+                           "locations": [loc(c, **{k: g[k] for k in ("type", "api", "line", "snippet", "via_helper")
+                                                   if k in g}) for c, g in hits]}
+            vp["sink"] = top_sinks()
+            vp["evidence"] = [loc(c, side="after", line=g["line"], snippet=g["snippet"], what="added_guard")
+                              for c, g in hits]
+        elif kind == "PRECONDITION_ADDITION":
+            conds = [(c, x) for c in main for x in c["added_conditions"] if x["early_exit"]]
+            vp["precondition"] = [loc(c, text=x["text"], line=x["line"], exit=x.get("exit", "")) for c, x in conds]
+            vp["target_api"] = top_sinks()
+            vp["evidence"] = [loc(c, side="after", line=x["line"], snippet=x["text"], what="added_condition")
+                              for c, x in conds]
+        elif kind == "API_REPLACEMENT":
+            reps = [(c, r) for c in main for r in c["replaced_calls"]]
+            vp["unsafe_api"] = [loc(c, name=r["name"], argc=r["before_argc"], line=r["before_line"], snippet=r["before"])
+                                for c, r in reps]
+            vp["safe_api"] = [loc(c, name=r["name"], argc=r["after_argc"], line=r["after_line"], snippet=r["after"])
+                              for c, r in reps]
+            vp["evidence"] = [loc(c, side="after", line=r["after_line"], snippet=r["after"], what="replaced_call")
+                              for c, r in reps]
+        else:
+            vp["evidence"] = [loc(c, side="after", snippet=c["evidence"]["after_snippet"], what="diff")
+                              for c in changes if not c["formatting_only"]]
+        return vp
 
 
 # --- 작은 도우미 ---------------------------------------------------------------

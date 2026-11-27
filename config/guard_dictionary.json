@@ -115,7 +115,7 @@
       "legacy_names": ["URI_USER"]
     },
     "BINDER_IDENTITY": {
-      "purpose": "Binder 호출자 신원 구간을 바꿈(clearCallingIdentity). 검사 자체가 아니라 신원 경계이므로 추가되면 기록하되, 이것만으로는 ADDED_GUARD 로 보지 않는다",
+      "purpose": "Binder 호출자 신원 구간을 바꿈(clearCallingIdentity). 검사 자체가 아니라 신원 경계이므로 추가되면 기록하되, 이것만으로는 GUARD_ADDITION 으로 보지 않는다",
       "apis": [
         "clearCallingIdentity",
         "restoreCallingIdentity",

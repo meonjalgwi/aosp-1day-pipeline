@@ -51,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     ext.add_argument("--out", help="출력 파일 (기본: patterns/<CVE>.json)")
     ext.add_argument("--commit", default="", help="패치 커밋 해시 (기록용)")
     ext.add_argument("--parent", default="", help="부모 커밋 해시 (기록용)")
+    ext.add_argument("--repo", default="", help="저장소 (예: platform/frameworks/base)")
     ext.add_argument("--follow-depth", type=int, default=2, help="헬퍼 메서드를 따라갈 깊이")
 
     # 대시보드 (Streamlit)
@@ -96,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "extract":
         from .analysis import extract_to_file
         out = extract_to_file(args.sources or f"sources/{args.cve_id}", args.out or f"patterns/{args.cve_id}.json",
-                              cve_id=args.cve_id, commit=args.commit, parent=args.parent,
+                              cve_id=args.cve_id, commit=args.commit, parent=args.parent, repository=args.repo,
                               follow_depth=args.follow_depth)
         print(f"[extract] {args.cve_id} -> {out}")
         return 0
