@@ -125,7 +125,7 @@ class Extractor:
     def _load_diffs(self, sources: Path, before_root: Path, after_root: Path) -> dict[str, FileDiff]:
         patch = sources / "patch.diff"
         if patch.is_file():
-            return parse_unified(patch.read_text())
+            return parse_unified(patch.read_text(encoding="utf-8", errors="replace"))
         rels = {str(p.relative_to(r)) for r in (before_root, after_root) if r.is_dir()
                 for p in r.rglob("*") if p.is_file()}
         out = {}
@@ -459,5 +459,5 @@ def extract_to_file(sources: Path | str, out: Path | str, **kw) -> Path:
     data = Extractor(follow_depth=kw.pop("follow_depth", 2)).extract(sources, **kw)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return out

@@ -11,7 +11,7 @@ from aosp1day.analysis import Extractor
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "sources"
-TRUTH = {c["patch"]["cve"]: c for c in json.loads((ROOT / "baselines" / "ground_truth.json").read_text())["cases"]}
+TRUTH = {c["patch"]["cve"]: c for c in json.loads((ROOT / "baselines" / "ground_truth.json").read_text(encoding="utf-8"))["cases"]}
 
 
 @pytest.fixture(scope="module")
@@ -73,7 +73,7 @@ def _make(tmp_path: Path, before: str, after: str) -> Path:
     for side, body in (("before", before), ("after", after)):
         p = tmp_path / side / "pkg" / "Svc.java"
         p.parent.mkdir(parents=True)
-        p.write_text("package pkg;\nclass Svc {\n" + body + "\n}\n")
+        p.write_text("package pkg;\nclass Svc {\n" + body + "\n}\n", encoding="utf-8")
     return tmp_path
 
 
@@ -141,3 +141,15 @@ def test_identity_only_is_not_a_guard(tmp_path):
     assert {g["type"] for g in c["added_guards"]} == {"BINDER_IDENTITY"}
     assert c["pattern_type"] != "GUARD_ADDITION"
     assert d["analysis"]["added_guard_types"] == []
+
+
+def test_text_io_specifies_utf8():
+    """Windows 기본 인코딩(cp949)에서도 돌도록, 텍스트 읽기·쓰기는 모두 encoding 을 지정한다."""
+    import re
+    offenders = []
+    for p in list((ROOT / "aosp1day" / "analysis").glob("*.py")) + [Path(__file__)]:
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if re.search(r"\.(read_text|write_text)\(", line) and "encoding=" not in line \
+                    and "re.search" not in line:
+                offenders.append(f"{p.name}:{i}")
+    assert offenders == []

@@ -20,7 +20,7 @@ class GuardDictionary:
 
     @classmethod
     def load(cls, path: Path | str | None = None) -> "GuardDictionary":
-        data = json.loads(Path(path or DEFAULT_PATH).read_text())
+        data = json.loads(Path(path or DEFAULT_PATH).read_text(encoding="utf-8"))
         return cls(types=data["types"], priority=data["priority"],
                    ignore_calls=set(data.get("ignore_calls", [])),
                    ignore_receivers=set(data.get("ignore_receivers", [])))

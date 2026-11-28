@@ -62,8 +62,8 @@ def parse_unified(text: str) -> dict[str, FileDiff]:
 
 
 def diff_files(before: Path | None, after: Path | None, rel: str) -> FileDiff:
-    a = before.read_text().splitlines() if before and before.is_file() else []
-    b = after.read_text().splitlines() if after and after.is_file() else []
+    a = before.read_text(encoding="utf-8", errors="replace").splitlines() if before and before.is_file() else []
+    b = after.read_text(encoding="utf-8", errors="replace").splitlines() if after and after.is_file() else []
     fd = FileDiff(rel)
     for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
         if tag in ("replace", "delete"):
