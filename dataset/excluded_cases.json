@@ -21,11 +21,31 @@
     },
     {
       "cve": "CVE-2025-48549",
-      "commit": "acbd37d21c2feffb6d64e669b956d59a6062b751",
+      "commit": "",
       "repository": "platform/frameworks/base, platform/frameworks/av",
       "support_status": "EXCLUDED",
       "exclude_reason": "NATIVE_CODE",
-      "detail": "CVE 레코드의 커밋 5개 중 2개가 frameworks/av(네이티브). frameworks/base 쪽 00344da6·20e363e2 는 조건 변경(CONDITION_CHANGE)이라 템플릿 대상도 아님(11/23 팀 확인)"
+      "detail": "CVE 레코드 커밋 5개 중 2개가 frameworks/av(네이티브). frameworks/base 쪽 00344da6·20e363e2 가 조건 변경이라는 판정은 팀 문서(walkthrough-cve-2023-40105.md, 11/23) 기준이며 이번에 직접 diff 를 다시 보지는 않음",
+      "commits": {
+        "platform/frameworks/base": [
+          "acbd37d21c2feffb6d64e669b956d59a6062b751",
+          "00344da68fce6ec4f7a1bf36f0ea3797805f00ce",
+          "20e363e2225843ff3cc7d6bea05ae2f4db83b408"
+        ],
+        "platform/frameworks/av": [
+          "8c09eb1034cb3b02a66f6c241c0b9c9981998d6f",
+          "37e7f808fad105da187b021fb762a66d37c9212a"
+        ]
+      }
+    },
+    {
+      "cve": "CVE-2023-21029",
+      "commit": "",
+      "repository": "(공개 AOSP 커밋 없음)",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NO_PUBLIC_COMMIT",
+      "detail": "Notion 후보. CVE 레코드 참조가 Pixel 공지(2023-03)뿐이고 AOSP 커밋 링크 없음. 수정 위치는 UidObserverController.register(INTERACT_ACROSS_USERS 검사 누락)로 알려져 있으나 패치 diff 확인 불가",
+      "notion_candidate": true
     }
   ]
 }
