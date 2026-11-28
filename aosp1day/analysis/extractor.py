@@ -30,8 +30,9 @@ from .guards import GuardDictionary
 from .java_ast import Call, Method, normalize, parse_methods
 
 FIX_KINDS = ("GUARD_ADDITION", "PRECONDITION_ADDITION", "API_REPLACEMENT", "OTHER")
-# 패치 유형 -> C 규칙 템플릿 (T1 Guard 없는 Sink, T2 API 앞 검사 누락, T3 위험 API 잔존)
-TEMPLATE_OF = {"GUARD_ADDITION": "T1", "PRECONDITION_ADDITION": "T2", "API_REPLACEMENT": "T3", "OTHER": None}
+# 패치 유형 -> C 의 T1 템플릿 3종 (perm_guard: Guard 없는 Sink, api_guard: API 앞 검사 누락, api_usage: 위험 API 잔존)
+TEMPLATE_OF = {"GUARD_ADDITION": "perm_guard", "PRECONDITION_ADDITION": "api_guard",
+               "API_REPLACEMENT": "api_usage", "OTHER": None}
 SCHEMA_VERSION = "0.1"
 
 
