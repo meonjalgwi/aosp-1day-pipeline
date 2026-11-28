@@ -1,0 +1,205 @@
+{
+  "schema_version": "0.1",
+  "status": "draft",
+  "updated_at": "2026-11-28",
+  "owner": "A 조서진 (seojinn0713)",
+  "description": "1주차 A(#37) CVE 인벤토리. patch 객체는 1주차 공통 형식과 같은 필드. 모든 커밋은 AOSP 미러에서 diff 를 직접 열어 확인.",
+  "status_values": {
+    "READY": "규칙 생성에 바로 사용 가능",
+    "NEEDS_WORK": "추가 확인 후 사용",
+    "HISTORICAL": "범위(2023~2025) 밖 참고용",
+    "EXCLUDED": "지원 대상 밖 → excluded_cases.json"
+  },
+  "pending": "Notion 후보 10건 재점검은 Notion 목록 확보 후 이 파일에 추가",
+  "cases": [
+    {
+      "patch": {
+        "cve": "CVE-2023-40105",
+        "commit": "935eb5ed6be35860a99ea242fb753f687d54a308",
+        "parent_commit": "08f9c38373848953f04f73f77d4e7aaa441e3421",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "services/core/java/com/android/server/am/ActivityManagerService.java"
+        ],
+        "support_status": "READY",
+        "exclude_reason": ""
+      },
+      "pattern_type": "GUARD_ADDITION",
+      "guard_type": "UID_PACKAGE_BINDING",
+      "language": "Java",
+      "bulletin": "2023-11",
+      "role": "baseline",
+      "commit_subject": "[DO NOT MERGE] Check caller's uid in backupAgentCreated callback",
+      "change_id": "I9f3ae5ec0b8f00e020d471cc0eddf8bd8bdbb82d",
+      "changed_methods": [
+        "ActivityManagerService.backupAgentCreated (modified)",
+        "ActivityManagerService.enforceCallingPackage (added)"
+      ],
+      "sources": "sources/CVE-2023-40105/",
+      "notes": "필수 E2E 기준선. 전·후 원본 확보, ground_truth 줄 번호 일치"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2024-0037",
+        "commit": "55fc00a0788ea0995fe0851616b9ac21710a2931",
+        "parent_commit": "3e88d987235f5a2acd50a9b6bad78dbbf39cb079",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "services/autofill/java/com/android/server/autofill/Helper.java",
+          "services/autofill/java/com/android/server/autofill/ui/RemoteInlineSuggestionViewConnector.java",
+          "services/autofill/java/com/android/server/autofill/ui/SaveUi.java"
+        ],
+        "support_status": "READY",
+        "exclude_reason": ""
+      },
+      "pattern_type": "GUARD_ADDITION",
+      "guard_type": "URI_USER_BOUNDARY",
+      "language": "Java",
+      "bulletin": "2024-02",
+      "role": "baseline",
+      "commit_subject": "[RESTRICT AUTOMERGE] Check permission of Autofill icon URIs",
+      "change_id": "I48879174664b70ced90492bb0991dc91cbf89b79",
+      "changed_methods": [
+        "Helper.checkRemoteViewUriPermissions (modified)",
+        "Helper.sanitizeSlice (added)",
+        "RemoteInlineSuggestionViewConnector.renderSuggestion (modified)",
+        "SaveUi.applyCustomDescription (modified)"
+      ],
+      "sources": "sources/CVE-2024-0037/",
+      "notes": "회고 검증 출발점. Notion에 없던 건. 2024-02 공지 페이지 표에는 안 보이고 CVE 레코드에서 공지·커밋이 연결됨(공지 표기 재확인 필요)"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2023-40111",
+        "commit": "55d3d57cbffc838c52d610af14a056dea87b422e",
+        "parent_commit": "7ac1135a7f857d40e125ba591a0ef005d5e00969",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "media/java/android/media/session/MediaSession.java",
+          "services/core/java/com/android/server/media/MediaSessionRecord.java"
+        ],
+        "support_status": "READY",
+        "exclude_reason": ""
+      },
+      "pattern_type": "PRECONDITION_ADDITION",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2023-11",
+      "role": "type_gap",
+      "commit_subject": "Prevent media button receivers targeting activities",
+      "change_id": "I2412633c0b3afda6776244c72043d0dd78a4c8a1",
+      "changed_methods": [
+        "MediaSessionRecord.SessionStub.setMediaButtonReceiver (modified)",
+        "MediaSession.setMediaButtonReceiver (javadoc·예외 처리만)"
+      ],
+      "precondition": "pi != null && pi.isActivity() 이면 return",
+      "target_api": "MediaButtonReceiverHolder.create(mUserId, pi, mPackageName)",
+      "notes": "API 앞 검사 추가형 대표 후보(scope-v2.3 기준선 B-1). MediaSession.java hunk 는 보안 검사와 무관(문서·rethrow)"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2025-0086",
+        "commit": "c1aa9e662464b8fa49765d53a82efa8e06bb176a",
+        "parent_commit": "7ba8c8f63f1b13b127c871749314a242ff022ae2",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "services/core/java/com/android/server/accounts/AccountManagerService.java"
+        ],
+        "support_status": "READY",
+        "exclude_reason": ""
+      },
+      "pattern_type": "PRECONDITION_ADDITION",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2025-03",
+      "role": "type_gap",
+      "commit_subject": "Check account type returned by AbstractAccountAuthenticator.",
+      "change_id": "Ifc62866f4feaca43abc32bc542b97f3741953f56",
+      "changed_methods": [
+        "AccountManagerService (Session.onResult 계열 콜백, 3191행 부근) (modified)"
+      ],
+      "precondition": "!type.equals(mAccountType) 이면 onError 후 return",
+      "target_api": "new Account(name, type) → 토큰 저장",
+      "notes": "B담당 정리에서는 AUTH_PERMISSION 으로 봤지만 diff 는 권한 검사가 아니라 인증자 응답의 계정 타입 확인 → PRECONDITION_ADDITION"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2024-49740",
+        "commit": "bcb1316835dc31f33f0c3b409ee847c389c09d2b",
+        "parent_commit": "f009ecdc73c7c496d3ae65db343c3c99d830f057",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "telephony/java/android/telephony/VisualVoicemailSmsFilterSettings.java"
+        ],
+        "support_status": "NEEDS_WORK",
+        "exclude_reason": ""
+      },
+      "pattern_type": "PRECONDITION_ADDITION",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2025-03",
+      "role": "type_gap",
+      "commit_subject": "enforce limits for VisualVoicemailSmsFilterSettings properties",
+      "change_id": "Id4b4358b141bb211a7e340b979774850b4bd2403",
+      "changed_methods": [
+        "VisualVoicemailSmsFilterSettings.Builder.setClientPrefix (modified)",
+        "VisualVoicemailSmsFilterSettings.Builder.setOriginatingNumbers (modified)"
+      ],
+      "precondition": "문자열 길이 ≤ 256, 리스트 크기 ≤ 100",
+      "target_api": "필드 대입(mClientPrefix, mOriginatingNumbers)",
+      "notes": "CVE 레코드에 packages/services/Telephony 커밋 b1ab472f 도 있음 → 다중 저장소. 두 번째 커밋 확인 후 READY 판정. DoS(자원 고갈)"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2023-40109",
+        "commit": "387d258cf10a30537fc48dc0e48d28071efa92e7",
+        "parent_commit": "935eb5ed6be35860a99ea242fb753f687d54a308",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "core/java/android/hardware/usb/UsbConfiguration.java"
+        ],
+        "support_status": "READY",
+        "exclude_reason": ""
+      },
+      "pattern_type": "API_REPLACEMENT",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2023-11",
+      "role": "type_gap",
+      "commit_subject": "Use type safe API of readParcelableArray",
+      "change_id": "I2917c8331b6d56caaa9a6479bcd9a2d089f5f503",
+      "changed_methods": [
+        "UsbConfiguration.CREATOR.createFromParcel (modified)"
+      ],
+      "unsafe_api": "Parcel.readParcelableArray(ClassLoader)",
+      "safe_api": "Parcel.readParcelableArray(ClassLoader, Class)",
+      "notes": "위험 API 교체형 대표 후보(scope-v2.3 기준선 C-1). 부모 커밋이 CVE-2023-40105 패치 커밋(935eb5ed)"
+    },
+    {
+      "patch": {
+        "cve": "CVE-2023-45777",
+        "commit": "f810d81839af38ee121c446105ca67cb12992fc6",
+        "parent_commit": "109e58b62dc9fedcee93983678ef9d4931e72afa",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "services/core/java/com/android/server/accounts/AccountManagerService.java"
+        ],
+        "support_status": "NEEDS_WORK",
+        "exclude_reason": ""
+      },
+      "pattern_type": "OTHER",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2023-12",
+      "role": "type_gap",
+      "commit_subject": "Update AccountManagerService checkKeyIntentParceledCorrectly.",
+      "change_id": "Ia2030a9dc371dccadd4e188a529351ac4232bb4f",
+      "changed_methods": [
+        "AccountManagerService.checkKeyIntentParceledCorrectly (modified)"
+      ],
+      "unsafe_api": "Bundle.getParcelable(KEY_INTENT, Intent.class)",
+      "safe_api": "getParcelable(KEY_INTENT) + intent.getClass() != Intent.class 이면 false",
+      "notes": "API 교체 + 검사 추가가 섞임(타입 지정 → 비지정으로 바꾸고 정확한 클래스 비교 추가). 분류 규칙상 OTHER 로 두고 API_REPLACEMENT 2번째 사례로 쓸지 팀 판단 필요. 추가 커밋 f4644b55 미확인"
+    }
+  ]
+}

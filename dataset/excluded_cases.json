@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "status": "draft",
+  "updated_at": "2026-11-28",
+  "reason_codes": {
+    "NATIVE_CODE": "C/C++ 네이티브 수정",
+    "KERNEL_VENDOR": "커널·벤더·비공개 수정",
+    "RESOURCE_ONLY": "리소스·설정만 변경",
+    "LARGE_REFACTOR": "대규모 리팩터링",
+    "NO_PUBLIC_COMMIT": "공개 AOSP 커밋 없음",
+    "OUT_OF_PATH": "대상 경로(frameworks/base·packages/·packages/modules/) 밖"
+  },
+  "cases": [
+    {
+      "cve": "CVE-2023-40091",
+      "commit": "0ec7b119d41adcbba23f9349e16de9e7e11683f6",
+      "repository": "platform/frameworks/base",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NATIVE_CODE",
+      "detail": "수정 파일이 cmds/incidentd/src/IncidentService.cpp(C++) 하나. 공지에는 Framework 로 분류돼 있어 경로 확인이 필요하다는 사례"
+    },
+    {
+      "cve": "CVE-2025-48549",
+      "commit": "acbd37d21c2feffb6d64e669b956d59a6062b751",
+      "repository": "platform/frameworks/base, platform/frameworks/av",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NATIVE_CODE",
+      "detail": "CVE 레코드의 커밋 5개 중 2개가 frameworks/av(네이티브). frameworks/base 쪽 00344da6·20e363e2 는 조건 변경(CONDITION_CHANGE)이라 템플릿 대상도 아님(11/23 팀 확인)"
+    }
+  ]
+}
