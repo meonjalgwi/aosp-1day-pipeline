@@ -35,11 +35,11 @@
 
 ### v2.5 (11/28) - 4주 계획 재편·공통 형식 반영
 
-11/24부터 4주 계획(1~4주차)으로 재편하고, 1주차 작업 계획의 공통 JSON 형식·이름을 따른다. 모듈 구성(M1~M11)과 파이프라인은 그대로다 (팀 프레임워크 보드와 같음). 아래 표의 새 이름이 이 문서의 이전 표기보다 우선한다.
+11/24부터 4주 계획(1\~4주차)으로 재편하고, 1주차 작업 계획의 공통 JSON 형식·이름을 따른다. 모듈 구성(M1\~M11)과 파이프라인은 그대로다 (팀 프레임워크 보드와 같음). 아래 표의 새 이름이 이 문서의 이전 표기보다 우선한다.
 
 | 항목 | 이전 표기 (v2.1~v2.4) | v2.5 |
 | --- | --- | --- |
-| 일정 | 5~8주 (11/24~12/21) | **1~4주차** (5주 = 1주차, 6주 = 2주차, 7주 = 3주차, 8주 = 4주차) |
+| 일정 | 5\~8주 (11/24\~12/21) | **1\~4주차** (5주 = 1주차, 6주 = 2주차, 7주 = 3주차, 8주 = 4주차) |
 | 1주차 담당 | 모듈별 (나연 M1, 현아 M2·M4, 서진 M5·M6) | **A 서진** (CVE 데이터 정제·전·후 소스) · **B 나연** (수정 유형 분석·패턴 추출) · **C 현아** (규칙 템플릿·차분 검증). 2주차부터는 1주차 주말 점검 후 확정 |
 | 수정 유형 | `fix_kind`: `ADDED_GUARD` · `ADDED_CHECK` · `API_REPLACE` · `NOVEL` · `CONDITION_CHANGE` · `BYPASS` · `OTHER` | **`pattern_type`**: `GUARD_ADDITION` · `PRECONDITION_ADDITION` · `API_REPLACEMENT` · `OTHER`. 분류 불가 시 추측하지 않고 `OTHER` (`NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` 로 두고 사유만 기록) |
 | Guard 유형 | `PERMISSION` · `UID` · `PACKAGE` · `APPOPS` · `CROSS_USER` · `URI_USER` | `PERMISSION` · **`CALLER_UID`** · **`UID_PACKAGE_BINDING`** · **`APP_OPS`** · `CROSS_USER` · **`URI_USER_BOUNDARY`** · **`BINDER_IDENTITY`**(신원 경계, 단독으로는 Guard 추가 아님). 정본: [`config/guard_dictionary.json`](../config/guard_dictionary.json) |
@@ -866,7 +866,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 | 주차 | 내용 | 담당 |
 | --- | --- | --- |
-| 1주차 (11/24~11/30) | **기준선 E2E**: `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. 필수 CVE-2023-40105, 추가 CVE-2024-0037·템플릿 3종 | A 서진: CVE 데이터 정제·전·후 소스 (`cve_inventory.json`, `sources/<CVE>/`) · B 나연: 정답·추출기·Guard 사전 (`ground_truth.json`, `patterns/<CVE>.json`) · C 현아: T1~T3 템플릿·차분 검증기·E2E (`validation_result.json`) |
+| 1주차 (11/24\~11/30) | **기준선 E2E**: `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. 필수 CVE-2023-40105, 추가 CVE-2024-0037·템플릿 3종 | A 서진: CVE 데이터 정제·전·후 소스 (`cve_inventory.json`, `sources/<CVE>/`) · B 나연: 정답·추출기·Guard 사전 (`ground_truth.json`, `patterns/<CVE>.json`) · C 현아: T1\~T3 템플릿·차분 검증기·E2E (`validation_result.json`) |
 | 2주차 (12/1~12/7) | 스캔·선별 (잠정): 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(T1), 대시보드 1차, Precision 측정 시작 | 미정 |
 | 3주차 (12/8~12/14) | 검토·평가 (잠정): M7 LLM 검토, 대시보드 후보·보고서 탭, M9, M11 (채택률·Precision·회고 검증·Vanir) | 미정 |
 | 4주차 (12/15~12/21) | 통합·평가·발표 | 전원 |
@@ -880,10 +880,10 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 | 주차 | 나연 | 현아 | 서진 |
 | --- | --- | --- | --- |
-| 4주 (11/16~11/23) | `schemas` v0.4·`storage`·`config` 추가분, M1 완성(OSV·Gitiles), `dataset` | `analysis/javaast`·`security_apis`·`sinks`, M2 `find_added_guards`·`find_sink_candidates` | 기준선 CVE 3~5건 선정, `baselines/` 정답 작성, `ruleengine/spec`·템플릿 2종 |
+| 4주 (11/16\~11/23) | `schemas` v0.4·`storage`·`config` 추가분, M1 완성(OSV·Gitiles), `dataset` | `analysis/javaast`·`security_apis`·`sinks`, M2 `find_added_guards`·`find_sink_candidates` | 기준선 CVE 3\~5건 선정, `baselines/` 정답 작성, `ruleengine/spec`·템플릿 2종 |
 | 5주 (11/24~11/30) | `llm.py` 구현체·`call_structured`, Pipeline·CLI 변경 | `analysis/aidl`·`callgraph`(파일 모드), M3, M4 | `ruleengine/matcher`(파일 모드), M5 `seed_params`·`self_check`·`adopt_rule` |
-| 6주 (12/1~12/7) | 대시보드 탭 1~3, `analysis/index` | M5 `draft_params` 프롬프트, M7 필터 | `matcher`(인덱스 모드), M6 |
-| 7주 (12/8~12/14) | 대시보드 탭 4~5·라벨, M9 | M7 `review`·`ground_review`·점수 | M11 회고 검증·지표 |
+| 6주 (12/1\~12/7) | 대시보드 탭 1\~3, `analysis/index` | M5 `draft_params` 프롬프트, M7 필터 | `matcher`(인덱스 모드), M6 |
+| 7주 (12/8\~12/14) | 대시보드 탭 4\~5·라벨, M9 | M7 `review`·`ground_review`·점수 | M11 회고 검증·지표 |
 | 8주 (12/15~12/21) | 통합·발표 | 후보 수동 검토 | 평가 정리 |
 
 </details>
