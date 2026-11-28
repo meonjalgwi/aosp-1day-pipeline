@@ -58,7 +58,7 @@
         ]
       },
       "rule": {
-        "template_id": "T1",
+        "template_id": "perm_guard",
         "rule_body": "",
         "before_target_match": true,
         "after_target_match": false,
@@ -164,7 +164,7 @@
         ]
       },
       "rule": {
-        "template_id": "T1",
+        "template_id": "perm_guard",
         "rule_body": "",
         "before_target_match": true,
         "after_target_match": false,

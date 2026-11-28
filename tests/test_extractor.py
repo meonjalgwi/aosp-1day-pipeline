@@ -93,7 +93,7 @@ def test_precondition_addition(tmp_path):
     assert vp["precondition"][0]["text"] == "pi != null && pi.isActivity()"
     assert vp["target_api"][0]["call"] == "setMediaButtonReceiver"
     assert vp["guard"] is None and vp["sink"] is None
-    assert d["analysis"]["suggested_template"] == "T2"
+    assert d["analysis"]["suggested_template"] == "api_guard"
 
 
 def test_api_replace(tmp_path):
@@ -104,7 +104,7 @@ def test_api_replace(tmp_path):
     assert c["pattern_type"] == vp["pattern_type"] == "API_REPLACEMENT"
     assert vp["unsafe_api"][0]["argc"] == 1 and vp["safe_api"][0]["argc"] == 2
     assert vp["safe_api"][0]["name"] == "readParcelableArray"
-    assert d["analysis"]["suggested_template"] == "T3"
+    assert d["analysis"]["suggested_template"] == "api_usage"
 
 
 def test_unclassifiable_is_other(tmp_path):
