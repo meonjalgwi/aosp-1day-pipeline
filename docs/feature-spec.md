@@ -50,7 +50,7 @@ CVE/패치 입력
 | M2. Patch Analyzer | `cve.json` | `patch_analysis.json` (`pattern_type`, 추가된 Guard·검사, 플래그 조건) | 1주차 (B: 추출기·`patterns/<CVE>.json`) |
 | M3. Binder Path / Source | `patch_analysis.json` + AOSP 소스 | `call_path.json` | 2주차 (잠정) |
 | M4. Root Cause (LLM, 트랙 A) | M2·M3 결과 | `root_cause.json` (S·G·S 초안) | 2주차 (잠정). 1주차는 `ground_truth.json` 의 S·G·S 로 대신 |
-| M5. Pattern / Rule | M4·M2 결과 + 전·후 소스 | `pattern.json` + `rules/` | 1주차 (C: T1~T3 템플릿·차분 검증) |
+| M5. Pattern / Rule | M4·M2 결과 + 전·후 소스 | `pattern.json` + `rules/` | 1주차 (C: 템플릿 3종 `perm_guard`·`api_guard`·`api_usage`·차분 검증) |
 | M6. Scanner | 규칙 + 스캔 스냅샷 인덱스 | `candidates.json` | 2주차 (잠정) |
 | M7. Prioritizer | `candidates.json` | `ranked_candidates.json` | 2~3주차 (잠정) |
 | M9. Reporter | 위 JSON 전부 | `report.json`·`.md`·`.html` (+ `_public`) | 3주차 (잠정) |
@@ -97,7 +97,7 @@ CVE/패치 입력
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
 | F-201 | 변경 위치 추출 | Tree-sitter 로 변경된 클래스·메서드 식별, hunk 별 전/후 코드(`CodeRef`) | P0 |
-| F-202 | **수정 유형 분류** | `pattern_type` = `GUARD_ADDITION`(트랙 A, 템플릿 T1) · `PRECONDITION_ADDITION`(B, T2) · `API_REPLACEMENT`(C, T3) · `OTHER`. **분류 불가 시 추측하지 않고 `OTHER`** (이전 `NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` + 사유). 같은 커밋의 헬퍼 메서드 안 검사까지 2단계 추적 | P0 |
+| F-202 | **수정 유형 분류** | `pattern_type` = `GUARD_ADDITION`(트랙 A, `perm_guard`) · `PRECONDITION_ADDITION`(B, `api_guard`) · `API_REPLACEMENT`(C, `api_usage`) · `OTHER`. **분류 불가 시 추측하지 않고 `OTHER`** (이전 `NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` + 사유). 같은 커밋의 헬퍼 메서드 안 검사까지 2단계 추적 | P0 |
 | F-203 | 보안 검사 인식 | Guard 사전([`config/guard_dictionary.json`](../config/guard_dictionary.json): PERMISSION · CALLER_UID · UID_PACKAGE_BINDING · APP_OPS · CROSS_USER · URI_USER_BOUNDARY · BINDER_IDENTITY, 보안 목적이 같으면 같은 유형으로 정규화) 기반 탐지, `clearCallingIdentity` 구간 처리 | P0 |
 | F-205 | 기능 플래그 처리 | `Flags.xxx()` 조건 감지 → "플래그 켜짐" 기준 실효 after 뷰 (L2) | P0 |
 | F-204 | 기준선 비교 | 수동 정답과 변경 메서드 일치율 | P1 |
@@ -130,7 +130,7 @@ CVE/패치 입력
 | ID | 기능 | 설명 | 우선순위 |
 | --- | --- | --- | --- |
 | F-501 | S·G·S 정리 | Source·Guard·Sink 구조로 결함 정리 | P0 |
-| F-503 | T1 템플릿 규칙 | 트랙별 템플릿(`perm_guard`·`api_guard`·`api_usage`) + 파라미터 | P0 |
+| F-503 | T1 템플릿 규칙 | 트랙별 템플릿 + 파라미터: `perm_guard`(A, Guard 없는 Sink) · `api_guard`(B, API 앞 검사 누락) · `api_usage`(C, 위험 API 잔존). 1주차 계획서의 "T1·T2·T3 템플릿"은 이 세 템플릿을 가리킨다 | P0 |
 | F-504 | **차분 오라클** | 패치 전 탐지 · 패치 후 미탐지 · 대조군 예산(`control_hits`). 통과한 규칙만 M6 에서 사용. after·대조군은 실효 after 뷰 기준 | P0 |
 | F-507 | LLM 규칙 일반화 | 실패 사유(실행 결과)를 피드백으로 최대 3회 재생성, 실패 시 seed 채택. 트랙 C 는 일반화 금지 | P0 (A) · P1 (B) |
 | F-508 | T2 열린 규칙 합성 | 템플릿에 없는 형식(`NOVEL`)은 LLM 이 Semgrep 규칙 전체 작성 → 같은 오라클 | P0 (L0) · P1 (사다리) |
@@ -221,7 +221,7 @@ Streamlit 단독. 미리 생성된 JSON 만 읽고, 쓰는 것은 `labels.json` 
                     "precondition": null, "target_api": null,             // PRECONDITION_ADDITION
                     "unsafe_api": null, "safe_api": null,                 // API_REPLACEMENT
                     "evidence": [] },
-  "rule": { "template_id": "T1|T2|T3", "rule_body": "",
+  "rule": { "template_id": "perm_guard|api_guard|api_usage", "rule_body": "",
             "before_target_match": false, "after_target_match": false,
             "after_other_match_count": 0, "validation_status": "PASS|WARN|FAIL" } }
 ```
@@ -290,7 +290,7 @@ Streamlit 단독. 미리 생성된 JSON 만 읽고, 쓰는 것은 `labels.json` 
 - [x] 기준선 CVE 확정 → CVE-2023-40105 · CVE-2024-0037 (v0.5)
 - [ ] `ground_truth.json` 셋 합의
 - [ ] 차분 검증 N값 (WARN 기준)
-- [ ] 템플릿 이름 겹침 정리: 1주차 T1~T3 vs [novel-patterns.md](novel-patterns.md) T2(LLM 합성)·T3(탐색형)
+- [x] 템플릿 이름 겹침 정리 → 1주차 템플릿은 `perm_guard`·`api_guard`·`api_usage`, T1·T2·T3 는 규칙 생성 단계(템플릿·LLM 합성·탐색형)로만 씀
 - [ ] 2주차 방향·담당 (1주차 주말 점검: 전체 스캔 vs 데이터·분석기 보완)
 - [ ] LLM provider·model 선정, CVE 당 호출 상한
 - [ ] `max_control_hits`·`max_scan_hits` 초기값

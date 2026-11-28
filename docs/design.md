@@ -44,7 +44,7 @@
 | 수정 유형 | `fix_kind`: `ADDED_GUARD` · `ADDED_CHECK` · `API_REPLACE` · `NOVEL` · `CONDITION_CHANGE` · `BYPASS` · `OTHER` | **`pattern_type`**: `GUARD_ADDITION` · `PRECONDITION_ADDITION` · `API_REPLACEMENT` · `OTHER`. 분류 불가 시 추측하지 않고 `OTHER` (`NOVEL`·`CONDITION_CHANGE`·`BYPASS` 는 `OTHER` 로 두고 사유만 기록) |
 | Guard 유형 | `PERMISSION` · `UID` · `PACKAGE` · `APPOPS` · `CROSS_USER` · `URI_USER` | `PERMISSION` · **`CALLER_UID`** · **`UID_PACKAGE_BINDING`** · **`APP_OPS`** · `CROSS_USER` · **`URI_USER_BOUNDARY`** · **`BINDER_IDENTITY`**(신원 경계, 단독으로는 Guard 추가 아님). 정본: [`config/guard_dictionary.json`](../config/guard_dictionary.json) |
 | 단계 간 공통 형식 | 단계별 산출물 (`patch_analysis.json`, `pattern.json` …) | 1주차 E2E 는 **`patch` / `vuln_pattern` / `rule`** 공통 형식으로 연결 (`patterns/<CVE>.json`, `baselines/ground_truth.json`). 유형별 표현: Source-Guard-Sink · Precondition-Target API · Unsafe API-Safe API · 전·후 차이 조건 |
-| 1주차 규칙 템플릿 | 트랙 A·B·C 템플릿 (+ T2 열린 합성, T3 탐색형) | **T1 Guard 없는 Sink**(필수) · **T2 API 앞 검사 누락** · **T3 위험 API 잔존** = 트랙 A·B·C 템플릿. ⚠ [novel-patterns.md](novel-patterns.md) 의 T2(LLM 열린 합성)·T3(탐색형)과 이름이 겹침 → §16 |
+| 1주차 규칙 템플릿 | 트랙 A·B·C 템플릿 (+ T2 열린 합성, T3 탐색형) | **`perm_guard`** Guard 없는 Sink(A, 필수) · **`api_guard`** API 앞 검사 누락(B) · **`api_usage`** 위험 API 잔존(C). 1주차 계획서의 "T1·T2·T3 템플릿"이 이 셋이다. **T1·T2·T3 이름은 규칙 생성 단계(T1 템플릿, T2 LLM 열린 합성, T3 탐색형, [novel-patterns.md](novel-patterns.md))로만 쓴다** |
 | 차분 검증 판정 | `passed` (+ `TOO_BROAD`) | `PASS` (전 탐지 + 후 수정 지점 미탐지) · `WARN` (PASS + 다른 위치 탐지 N건 초과) · `FAIL` (실패 단계·원인 기록). 1주차는 다른 위치 탐지 건수만 수집 |
 | 기준선 | 3~5건 제안 | **CVE-2023-40105 · CVE-2024-0037 확정**, CVE-2023-21113 은 Development 데이터 겸 대체 기준선 |
 
@@ -569,9 +569,9 @@ class CodeIndexer:
 
 | 순서 | 조건 | `pattern_type` | 이후 |
 | --- | --- | --- | --- |
-| 1 | 패치 후 Guard 호출 지점 **(유형, 호출 이름) 개수**가 패치 전보다 많음. 같은 커밋에 정의된 헬퍼는 2단계까지 따라가 본문의 Guard 를 셈. `BINDER_IDENTITY` 만 늘어난 것은 제외 | `GUARD_ADDITION` | T1 (Guard 없는 Sink) |
-| 2 | 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 `if` 추가 | `PRECONDITION_ADDITION` | T2 (API 앞 검사 누락) |
-| 3 | 같은 이름의 호출이 인자 수·타입만 바뀌어 빠지고 들어옴 | `API_REPLACEMENT` | T3 (위험 API 잔존) |
+| 1 | 패치 후 Guard 호출 지점 **(유형, 호출 이름) 개수**가 패치 전보다 많음. 같은 커밋에 정의된 헬퍼는 2단계까지 따라가 본문의 Guard 를 셈. `BINDER_IDENTITY` 만 늘어난 것은 제외 | `GUARD_ADDITION` | `perm_guard` (Guard 없는 Sink) |
+| 2 | 사전에 없는 조건이지만 then 쪽이 return/throw/continue/break 인 `if` 추가 | `PRECONDITION_ADDITION` | `api_guard` (API 앞 검사 누락) |
+| 3 | 같은 이름의 호출이 인자 수·타입만 바뀌어 빠지고 들어옴 | `API_REPLACEMENT` | `api_usage` (위험 API 잔존) |
 | 4 | 그 외 (v2.1 의 `CONDITION_CHANGE`·`BYPASS` 포함) | `OTHER` | 템플릿 없음. 사유를 `notes` 에 기록 |
 
 CVE 전체 `pattern_type` 은 헬퍼가 아닌 변경 중 가장 앞 순서의 값이다.
@@ -866,12 +866,12 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 
 | 주차 | 내용 | 담당 |
 | --- | --- | --- |
-| 1주차 (11/24\~11/30) | **기준선 E2E**: `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. 필수 CVE-2023-40105, 추가 CVE-2024-0037·템플릿 3종 | A 서진: CVE 데이터 정제·전·후 소스 (`cve_inventory.json`, `sources/<CVE>/`) · B 나연: 정답·추출기·Guard 사전 (`ground_truth.json`, `patterns/<CVE>.json`) · C 현아: T1\~T3 템플릿·차분 검증기·E2E (`validation_result.json`) |
-| 2주차 (12/1~12/7) | 스캔·선별 (잠정): 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(T1), 대시보드 1차, Precision 측정 시작 | 미정 |
+| 1주차 (11/24\~11/30) | **기준선 E2E**: `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. 필수 CVE-2023-40105, 추가 CVE-2024-0037·템플릿 3종 | A 서진: CVE 데이터 정제·전·후 소스 (`cve_inventory.json`, `sources/<CVE>/`) · B 나연: 정답·추출기·Guard 사전 (`ground_truth.json`, `patterns/<CVE>.json`) · C 현아: 템플릿 3종(`perm_guard`·`api_guard`·`api_usage`)·차분 검증기·E2E (`validation_result.json`) |
+| 2주차 (12/1~12/7) | 스캔·선별 (잠정): 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(트랙 A), 대시보드 1차, Precision 측정 시작 | 미정 |
 | 3주차 (12/8~12/14) | 검토·평가 (잠정): M7 LLM 검토, 대시보드 후보·보고서 탭, M9, M11 (채택률·Precision·회고 검증·Vanir) | 미정 |
 | 4주차 (12/15~12/21) | 통합·평가·발표 | 전원 |
 
-**1주차 마일스톤 (11/30 최소 완료선).** A: 후보 10건 상태 분류, 기준선 2건 전·후 코드 확보 · B: 기준선 2건 수동 정답, CVE-2023-40105 패턴 JSON · C: T1 템플릿, CVE-2023-40105 차분 검증 · 공동: 유형 커버리지 표, 제외 사례 표, 기준선 1건 E2E 데모. (v2.1 의 "5주차 수직 관통"을 대체. M3·M4 는 1주차 E2E 에서 빼고 `ground_truth.json` 의 S·G·S 로 대신한다.)
+**1주차 마일스톤 (11/30 최소 완료선).** A: 후보 10건 상태 분류, 기준선 2건 전·후 코드 확보 · B: 기준선 2건 수동 정답, CVE-2023-40105 패턴 JSON · C: `perm_guard` 템플릿, CVE-2023-40105 차분 검증 · 공동: 유형 커버리지 표, 제외 사례 표, 기준선 1건 E2E 데모. (v2.1 의 "5주차 수직 관통"을 대체. M3·M4 는 1주차 E2E 에서 빼고 `ground_truth.json` 의 S·G·S 로 대신한다.)
 
 **기준선 (확정).** CVE-2023-40105 (`ActivityManagerService.backupAgentCreated`, `UID_PACKAGE_BINDING` 추가) · CVE-2024-0037 (Autofill `sanitizeSlice`·`sanitizeRemoteView`, `URI_USER_BOUNDARY` 추가). 둘 다 `GUARD_ADDITION`. CVE-2023-21113 은 Development 데이터 겸 대체 기준선. 정답: [`baselines/ground_truth.json`](../baselines/ground_truth.json) (셋 합의 전 초안). 이전 선정 메모(CVE-2024-31312·CVE-2025-48549·CVE-2023-21098 범위 판정)는 [walkthrough-cve-2023-40105.md](walkthrough-cve-2023-40105.md) 0절 참고.
 
@@ -930,7 +930,7 @@ STANDALONE = (Evaluator, Harness, Verifier)    # Harness·Verifier 는 후속 �
 - 스캔할 `aosp_revision` 과 회고 검증용 과거 리비전
 - LLM provider·model 과 CVE당 호출 상한 (M4 1회, M5 최대 3회, M7 최대 K회)
 - ~~기준선 CVE 3~5건 선정~~ → 2건 확정 (v2.5, §14). `ground_truth.json` 셋 합의
-- **[v2.5] 템플릿 이름 겹침:** 1주차 계획의 T1~T3(Guard 없는 Sink · API 앞 검사 누락 · 위험 API 잔존)과 [novel-patterns.md](novel-patterns.md) 의 T1(템플릿)·T2(LLM 열린 합성)·T3(탐색형)이 이름이 겹침. 한쪽 이름을 바꿀지 결정
+- ~~**[v2.5] 템플릿 이름 겹침**~~ → 1주차 템플릿은 `perm_guard`·`api_guard`·`api_usage`, T1·T2·T3 는 규칙 생성 단계로만 씀 (v2.5 표)
 - **[v2.5] 차분 검증 N값** (WARN 기준, 1주차는 다른 위치 탐지 건수만 수집)
 - `max_control_hits`·`max_scan_hits` 초기값 (기준선 3~5건으로 조정)
 - **범위 결정 → v2.3 제안으로 정리됨** ([scope-v2.3.md](scope-v2.3.md), 팀 리뷰 후 확정). 이전 메모: ASB 3개월 표본 17건 중 현재 범위(system_server + Guard 추가)에 맞는 패치는 1건. 앱 쪽 cross-user URI 검사 추가가 반복되므로 이 패턴을 P0 로 올릴지 결정 ([walkthrough 0.1](walkthrough-cve-2023-40105.md#01-표본-측정--asb-3개월치-framework-frameworksbase-커밋-17건-1123))

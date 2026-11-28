@@ -80,7 +80,8 @@
 | **차분 오라클** | 규칙 채택 기준: 패치 전 코드의 수정 지점을 잡고, 패치 후 코드의 그 지점은 잡지 않으며, 패치 후 다른 곳(대조군)을 예산 이상 잡지 않아야 함. 취약점 유형과 무관 |
 | **`fix_kind` (수정 유형)** | M2 가 판정: `ADDED_GUARD`(권한형 Guard 추가) · `ADDED_CHECK`(API 앞 검사 추가) · `API_REPLACE`(API 교체) · `NOVEL`(템플릿에 없는 형식) · 범위 밖 사유 |
 | **트랙 A·B·C** | 템플릿 규칙 종류: A 권한형 Guard, B 검사형, C API 교체형 |
-| **T1 · T2 · T3** | 규칙 생성 단계: T1 템플릿, T2 LLM 이 규칙 전체 합성(Semgrep), T3 규칙 없이 탐색형 |
+| **T1 · T2 · T3** | 규칙 생성 단계: T1 템플릿, T2 LLM 이 규칙 전체 합성(Semgrep), T3 규칙 없이 탐색형. 템플릿 종류 이름으로는 쓰지 않는다 |
+| **`perm_guard` · `api_guard` · `api_usage`** | T1 템플릿 3종: `perm_guard` Guard 없는 Sink(트랙 A, `GUARD_ADDITION`) · `api_guard` API 앞 검사 누락(트랙 B, `PRECONDITION_ADDITION`) · `api_usage` 위험 API 잔존(트랙 C, `API_REPLACEMENT`). 1주차 계획서의 "T1·T2·T3 템플릿"이 이 셋 |
 | **패턴 라이브러리** | 사람이 승인한 생성 규칙을 파일로 저장해 다음 CVE 에 재사용하는 것 (재학습 아님) |
 | **대조군 예산 (`control_hits`)** | 패치 후 파일에서 패치된 메서드 밖 히트 수의 상한. 규칙이 지나치게 넓어지는 것을 막음 |
 | **스캔 스냅샷** | 스캔 기준 코드: `android-latest-release` + 이후 보안 공지 패치 적용본 |

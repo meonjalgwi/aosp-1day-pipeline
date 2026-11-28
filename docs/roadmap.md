@@ -21,7 +21,7 @@
 | 주차 | 기간 | 목표 | 주요 작업 | 담당 | 이슈 |
 | --- | --- | --- | --- | --- | --- |
 | 1주차 | 11/24~11/30 | 기준선 E2E | 기준선 2건(CVE-2023-40105, CVE-2024-0037)으로 `패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증` 한 번 연결. **필수:** CVE-2023-40105 E2E | A 서진 · B 나연 · C 현아 | #36 (#37 · #38 · #39) |
-| 2주차 | 12/1~12/7 | 스캔·선별 (잠정) | 1주차 주말 점검에서 "전체 스캔 vs 데이터·분석기 보완" 결정 후 확정. 후보: 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(T1), 대시보드 1차, Precision 측정 시작 | 미정 | #40 |
+| 2주차 | 12/1~12/7 | 스캔·선별 (잠정) | 1주차 주말 점검에서 "전체 스캔 vs 데이터·분석기 보완" 결정 후 확정. 후보: 스캔 스냅샷 고정, PASS 규칙 전체 스캔, M7 필터·점수, M3·M4(트랙 A), 대시보드 1차, Precision 측정 시작 | 미정 | #40 |
 | 3주차 | 12/8~12/14 | 검토·평가 (잠정) | M7 LLM 검토, 대시보드 후보·보고서 탭, M9 보고서, M11 규칙 채택률·Precision·회고 검증·Vanir 비교 | 미정 | #41 |
 | 4주차 | 12/15~12/21 | 통합·평가·발표 | 기능 동결·통합, 상위 후보 2인 라벨·κ, 평가 리포트, 최종 발표·데모, (해당 시) 책임 있는 공개 절차 | 전원 | #42 |
 
@@ -31,7 +31,7 @@
 | --- | --- | --- |
 | A (서진) | CVE 데이터 정제·유형 커버리지: 기준선 2건 전·후 소스 확보(최우선), 후보 10건 재점검·상태 지정(`READY`/`NEEDS_WORK`/`HISTORICAL`/`EXCLUDED`), 부족 유형 추가 조사 | `cve_inventory.json`, `excluded_cases.json`, `type_coverage.md`, `sources/<CVE>/{before,after}/` |
 | B (나연) | 수정 유형 분석·패턴 추출: 수동 정답, Tree-sitter 추출기, Guard 사전, 수정 유형 분류기 | `ground_truth.json`, `guard_dictionary.json`, `patterns/<CVE>.json`, 추출기 |
-| C (현아) | 규칙 템플릿·차분 검증: T1 Guard 없는 Sink(필수)·T2·T3, 차분 검증기(PASS/WARN/FAIL), E2E 스크립트 | 템플릿, 차분 검증기, E2E 스크립트, `validation_result.json` |
+| C (현아) | 규칙 템플릿·차분 검증: 템플릿 3종 `perm_guard`(Guard 없는 Sink, 필수)·`api_guard`(API 앞 검사 누락)·`api_usage`(위험 API 잔존), 차분 검증기(PASS/WARN/FAIL), E2E 스크립트 | 템플릿, 차분 검증기, E2E 스크립트, `validation_result.json` |
 
 공통 JSON 형식은 `patch` / `vuln_pattern` / `rule`. 패치 유형은 `GUARD_ADDITION`(Source-Guard-Sink) · `PRECONDITION_ADDITION`(Precondition-Target API) · `API_REPLACEMENT`(Unsafe API-Safe API) · `OTHER`.
 

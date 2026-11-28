@@ -19,9 +19,9 @@
 
 | 패치 유형 | 표현 | 대표 CVE | 무엇이 바뀌었나 | 상태 |
 | --- | --- | --- | --- | --- |
-| `GUARD_ADDITION` (T1) | Source-Guard-Sink | **CVE-2023-40105** | `backupAgentCreated` 에 호출자 UID-패키지 일치 검사(`enforceCallingPackage`) 추가 | 1주차 필수 E2E |
-| `PRECONDITION_ADDITION` (T2) | Precondition-Target API | **CVE-2023-40111** | `setMediaButtonReceiver` 앞에 `isActivity()` 차단 추가 | READY, 수동·분류기 일치 |
-| `API_REPLACEMENT` (T3) | Unsafe API-Safe API | **CVE-2023-40109** | `readParcelableArray` 를 타입 지정 버전으로 교체 | READY, 수동·분류기 일치 |
+| `GUARD_ADDITION` (`perm_guard`) | Source-Guard-Sink | **CVE-2023-40105** | `backupAgentCreated` 에 호출자 UID-패키지 일치 검사(`enforceCallingPackage`) 추가 | 1주차 필수 E2E |
+| `PRECONDITION_ADDITION` (`api_guard`) | Precondition-Target API | **CVE-2023-40111** | `setMediaButtonReceiver` 앞에 `isActivity()` 차단 추가 | READY, 수동·분류기 일치 |
+| `API_REPLACEMENT` (`api_usage`) | Unsafe API-Safe API | **CVE-2023-40109** | `readParcelableArray` 를 타입 지정 버전으로 교체 | READY, 수동·분류기 일치 |
 
 - 상태는 A 인벤토리([`dataset/cve_inventory.json`](../dataset/cve_inventory.json), #44) 기준.
 - 예비 사례: `PRECONDITION_ADDITION` CVE-2025-0086, `API_REPLACEMENT` CVE-2024-31318 (둘 다 수동 분류와 분류기 결과가 달라 팀 결정 필요).
@@ -96,7 +96,7 @@ S·G·S 는 주력 유형(`GUARD_ADDITION`)의 규칙·검증·후보 판정을 
 
 - **공개 패치 하나에서 "어떤 검사가 필요한지"를 자동으로 뽑아** 탐지 규칙으로 만든다.
 - 그 규칙을 **패치 전·후 코드로 검증**(전 탐지·후 미탐지·대조군 예산)해 통과한 것만 쓴다.
-- 패치 유형별로 다른 규칙 템플릿(T1~T3)을 쓰고, 맞지 않는 패치는 사유와 함께 걸러낸다.
+- 패치 유형별로 다른 규칙 템플릿(`perm_guard`·`api_guard`·`api_usage`)을 쓰고, 맞지 않는 패치는 사유와 함께 걸러낸다.
 
 ## 5. 정직하게 말할 한계
 
