@@ -53,7 +53,8 @@
 | **Tree-sitter Query** | Tree-sitter에서 AST 노드를 찾는 쿼리 문법(`.scm`). M5·M6 탐지 규칙에 사용 |
 | **AST** | 추상 구문 트리. 코드를 문법 단위(클래스·메서드·조건문)로 나눈 구조 |
 | **Semgrep** | 패턴 기반 코드 검색 도구. T1 템플릿 규칙은 Tree-sitter, 템플릿에 없는 형식의 T2 규칙 합성에만 Semgrep CE(로컬 CLI)를 씀 |
-| **Source–Guard–Sink** | 취약 패턴을 보는 방식. 외부 입력(source)이 검사(guard)를 거쳐 위험 동작(sink)에 닿는 구조. guard가 빠지면 취약 |
+| **Source–Guard–Sink** | 취약 패턴을 보는 방식. 외부 입력(source)이 검사(guard)를 거쳐 위험 동작(sink)에 닿는 구조. guard가 빠지면 취약. **이름은 우리 팀이 붙인 것**이고, 개념은 taint 분석(source→sink)과 안드로이드 접근 통제 연구(Kratos·AceDroid·Invetter·ACMiner·Axplorer)에서 왔다. Vanir 와는 무관 ([final-demo.md](final-demo.md) §4.1) |
+| **Vanir** | Google 의 패치 누락 탐지 도구. "같은 코드에 이 패치가 적용됐나"를 본다. 우리 결과의 비교 대상(베이스라인) ([final-demo.md](final-demo.md) §3.2) |
 | **보안 불변식** | "이 동작 전에는 반드시 X 검사가 있어야 한다" 같은 항상 지켜져야 하는 규칙 |
 | **UID–packageName 불일치** | 호출한 앱의 실제 UID와 주장하는 패키지 이름을 대조하지 않는 취약 패턴 |
 | **Cross-user** | 다른 사용자(멀티유저/업무 프로필)의 데이터에 접근하는 취약 패턴 |
