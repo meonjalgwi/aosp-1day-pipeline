@@ -53,7 +53,8 @@
 | **Tree-sitter Query** | Tree-sitter에서 AST 노드를 찾는 쿼리 문법(`.scm`). M5·M6 탐지 규칙에 사용 |
 | **AST** | 추상 구문 트리. 코드를 문법 단위(클래스·메서드·조건문)로 나눈 구조 |
 | **Semgrep** | 패턴 기반 코드 검색 도구. T1 템플릿 규칙은 Tree-sitter, 템플릿에 없는 형식의 T2 규칙 합성에만 Semgrep CE(로컬 CLI)를 씀 |
-| **Source–Guard–Sink** | 취약 패턴을 보는 방식. 외부 입력(source)이 검사(guard)를 거쳐 위험 동작(sink)에 닿는 구조. guard가 빠지면 취약 |
+| **Source–Guard–Sink** | 취약 패턴을 보는 방식. 외부 입력(source)이 검사(guard)를 거쳐 위험 동작(sink)에 닿는 구조. guard가 빠지면 취약. **이름은 우리 팀이 붙인 것**이고, 개념은 taint 분석(source→sink)과 안드로이드 접근 통제 연구(Kratos·AceDroid·Invetter·ACMiner·Axplorer)에서 왔다. Vanir 와는 무관 ([final-demo.md](final-demo.md) §4.1) |
+| **Vanir** | Google 의 패치 누락 탐지 도구. "같은 코드에 이 패치가 적용됐나"를 본다. 우리 결과의 비교 대상(베이스라인) ([final-demo.md](final-demo.md) §3.2) |
 | **보안 불변식** | "이 동작 전에는 반드시 X 검사가 있어야 한다" 같은 항상 지켜져야 하는 규칙 |
 | **UID–packageName 불일치** | 호출한 앱의 실제 UID와 주장하는 패키지 이름을 대조하지 않는 취약 패턴 |
 | **Cross-user** | 다른 사용자(멀티유저/업무 프로필)의 데이터에 접근하는 취약 패턴 |
@@ -79,7 +80,8 @@
 | **차분 오라클** | 규칙 채택 기준: 패치 전 코드의 수정 지점을 잡고, 패치 후 코드의 그 지점은 잡지 않으며, 패치 후 다른 곳(대조군)을 예산 이상 잡지 않아야 함. 취약점 유형과 무관 |
 | **`fix_kind` (수정 유형)** | M2 가 판정: `ADDED_GUARD`(권한형 Guard 추가) · `ADDED_CHECK`(API 앞 검사 추가) · `API_REPLACE`(API 교체) · `NOVEL`(템플릿에 없는 형식) · 범위 밖 사유 |
 | **트랙 A·B·C** | 템플릿 규칙 종류: A 권한형 Guard, B 검사형, C API 교체형 |
-| **T1 · T2 · T3** | 규칙 생성 단계: T1 템플릿, T2 LLM 이 규칙 전체 합성(Semgrep), T3 규칙 없이 탐색형 |
+| **T1 · T2 · T3** | 규칙 생성 단계: T1 템플릿, T2 LLM 이 규칙 전체 합성(Semgrep), T3 규칙 없이 탐색형. 템플릿 종류 이름으로는 쓰지 않는다 |
+| **`perm_guard` · `api_guard` · `api_usage`** | T1 템플릿 3종: `perm_guard` Guard 없는 Sink(트랙 A, `GUARD_ADDITION`) · `api_guard` API 앞 검사 누락(트랙 B, `PRECONDITION_ADDITION`) · `api_usage` 위험 API 잔존(트랙 C, `API_REPLACEMENT`). 1주차 계획서의 "T1·T2·T3 템플릿"이 이 셋 |
 | **패턴 라이브러리** | 사람이 승인한 생성 규칙을 파일로 저장해 다음 CVE 에 재사용하는 것 (재학습 아님) |
 | **대조군 예산 (`control_hits`)** | 패치 후 파일에서 패치된 메서드 밖 히트 수의 상한. 규칙이 지나치게 넓어지는 것을 막음 |
 | **스캔 스냅샷** | 스캔 기준 코드: `android-latest-release` + 이후 보안 공지 패치 적용본 |

@@ -1,6 +1,6 @@
 # aosp-1day-pipeline (먼잘귀)
 
-공개 패치 기반 AOSP 유사 취약점 탐지 — 패치 기반 규칙 생성 파이프라인
+공개 패치 기반 AOSP 유사 취약점 탐지 - 패치 기반 규칙 생성 파이프라인
 
 가천대학교 P-실무프로젝트 팀 "먼잘귀(meonjalgwi)"의 프로젝트 리포지토리입니다.
 
@@ -27,26 +27,28 @@ CVE/패치 입력 → 패치 분석(수정 유형 분류) → 진입점·Source 
 → 탐지 규칙 생성 + 차분 오라클 검증 → AOSP 유사 코드 스캔 → 후보 선별·우선순위화 → 보고서·대시보드
 ```
 
-- **M1 Collector** — CVE/패치 커밋의 메타데이터·부모 커밋·diff·전/후 소스 저장, 지원 대상 데이터셋 구축
-- **M2 Patch Analyzer** — 변경 위치·보안 검사 추출, 수정 유형(`fix_kind`) 분류, 기능 플래그 처리
-- **M3 Binder Path / Source** — Binder 진입점·앱 제공 객체(Source)에서 변경 코드까지 경로, 도달성 3값
-- **M4 Root Cause (LLM)** — 근거 기반 Source–Guard–Sink 초안 (권한형 트랙)
-- **M5 Pattern / Rule** — 템플릿 규칙(T1)·LLM 합성 규칙(T2) 생성, 차분 오라클(패치 전 탐지·후 미탐지·대조군 예산)로 채택
-- **M6 Scanner / M7 Prioritizer** — 스캔 스냅샷 전체 스캔, 오탐 필터·점수·LLM 질문 분해 검토, 상위 후보 출력
-- **M9 Reporter** — 근거 diff·한계를 포함한 HTML/Markdown/JSON 보고서
-- **M10 Web Dashboard (최종 산출물)** — 개요·취약 패턴·탐지 규칙·변종 후보·보고서 5개 탭, 후보 라벨 (미리 생성된 JSON 만 읽음)
-- **M11 Evaluation** — 규칙 채택률, Precision, 회고 검증, Vanir 베이스라인 비교
-- ~~M8 Verifier~~ — 후속 범위 (코드 뼈대만 유지)
+- **M1 Collector** - CVE/패치 커밋의 메타데이터·부모 커밋·diff·전/후 소스 저장, 지원 대상 데이터셋 구축
+- **M2 Patch Analyzer** - 변경 위치·보안 검사 추출, 수정 유형(`fix_kind`) 분류, 기능 플래그 처리
+- **M3 Binder Path / Source** - Binder 진입점·앱 제공 객체(Source)에서 변경 코드까지 경로, 도달성 3값
+- **M4 Root Cause (LLM)** - 근거 기반 Source–Guard–Sink 초안 (권한형 트랙)
+- **M5 Pattern / Rule** - 템플릿 규칙(T1)·LLM 합성 규칙(T2) 생성, 차분 오라클(패치 전 탐지·후 미탐지·대조군 예산)로 채택
+- **M6 Scanner / M7 Prioritizer** - 스캔 스냅샷 전체 스캔, 오탐 필터·점수·LLM 질문 분해 검토, 상위 후보 출력
+- **M9 Reporter** - 근거 diff·한계를 포함한 HTML/Markdown/JSON 보고서
+- **M10 Web Dashboard (최종 산출물)** - 개요·취약 패턴·탐지 규칙·변종 후보·보고서 5개 탭, 후보 라벨 (미리 생성된 JSON 만 읽음)
+- **M11 Evaluation** - 규칙 채택률, Precision, 회고 검증, Vanir 베이스라인 비교
+- ~~M8 Verifier~~ - 후속 범위 (코드 뼈대만 유지)
 
 기능 상세는 [docs/feature-spec.md](docs/feature-spec.md), 설계는 [docs/design.md](docs/design.md) 참고.
 
 ## 진행 방식
 
-- 총 **8주** (10/26 ~ 12/21). 4주차까지 범위·설계·수집·패치 분석, 5~7주차 규칙 생성·스캔·선별·대시보드, 8주차 통합·평가·발표.
-- 담당 (제안, 구현 전 재확정)
-  - @zv9uvr (나연) — M1 Collector · dataset · 공통 모듈 · 대시보드 · 통합
-  - @gusdkcjs4 (현아) — M2 Patch Analyzer · M3 · M4 · M7
-  - @seojinn0713 (서진) — M5 Pattern/Rule · M6 Scanner · M11 Evaluation
+- 10/26\~11/23 범위·설계 확정 후, **11/24부터 4주 계획(1\~4주차, \~12/21)** 으로 진행.
+  - 1주차: 기준선 E2E (패치 수집 → 패턴 추출 → 규칙 생성 → 차분 검증)
+  - 2주차: 스캔·선별 (잠정) · 3주차: 검토·평가 (잠정) · 4주차: 통합·평가·발표
+- 1주차 담당 (2주차부터는 주말 점검 후 확정)
+  - @seojinn0713 (서진) - A: CVE 데이터 정제·유형 커버리지
+  - @zv9uvr (나연) - B: 수정 유형 분석·패턴 추출
+  - @gusdkcjs4 (현아) - C: 규칙 템플릿·차분 검증
 
 자세한 주차별 계획은 [docs/roadmap.md](docs/roadmap.md) 참고.
 
@@ -55,7 +57,7 @@ CVE/패치 입력 → 패치 분석(수정 유형 분류) → 진입점·Source 
 1. 작업 전 GitHub Issue를 만들고 담당자를 배정합니다.
 2. 이슈별로 브랜치를 만들어 작업합니다. (예: `feature/collector-agent`)
 3. 작업이 끝나면 PR을 생성하고, 팀원 최소 1명의 리뷰 승인을 받은 뒤 main에 merge합니다.
-4. PR 본문에 관련 이슈를 연결합니다. (`Closes #이슈번호`)
+4. PR 본문에 관련 이슈를 연결합니다. (`Closes #작업이슈`, `Refs #주차이슈`)
 
 ## 디렉터리 구조
 
@@ -68,7 +70,7 @@ modules/
   m05-pattern-generator/  # M5. Pattern / Rule
   m06-scanner/            # M6. Scanner
   m07-prioritizer/        # M7. Prioritizer
-  m08-verifier/           # M8. Verifier — 후속 범위 (이번 프로젝트 제외)
+  m08-verifier/           # M8. Verifier - 후속 범위 (이번 프로젝트 제외)
   m09-reporter/           # M9. Reporter
   m10-dashboard/          # M10. Web Dashboard (최종 산출물)
   m11-evaluation/         # M11. Evaluation
