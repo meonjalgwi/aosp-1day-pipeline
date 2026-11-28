@@ -14,6 +14,8 @@
     aosp1day eval      _ --baselines baselines/          # 여러 CVE 평가 (cve_id 자리는 무시)
     aosp1day run       CVE-2024-xxxx [--start pattern]   # 전체 또는 특정 단계부터
     aosp1day dashboard [--port 8501]                     # M10 Streamlit 대시보드
+    aosp1day extract   CVE-2024-xxxx [--sources sources/<CVE>] [--out patterns/<CVE>.json]
+                                                         # M2 추출기: 패치 전·후 소스 -> 수정 패턴
 """
 
 from __future__ import annotations
@@ -41,6 +43,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("cve_id")
     run.add_argument("--start", help="이 단계부터 재실행")
     run.add_argument("--source", help="CVE ID 대신 커밋 URL/해시")
+
+    # M2 추출기 (패치 전·후 소스만 있으면 단독 실행)
+    ext = sub.add_parser("extract", help="M2 패치 전·후 소스에서 수정 패턴 추출 -> patterns/<CVE>.json")
+    ext.add_argument("cve_id")
+    ext.add_argument("--sources", help="before/after 디렉터리가 있는 폴더 (기본: sources/<CVE>)")
+    ext.add_argument("--out", help="출력 파일 (기본: patterns/<CVE>.json)")
+    ext.add_argument("--commit", default="", help="패치 커밋 해시 (기록용)")
+    ext.add_argument("--parent", default="", help="부모 커밋 해시 (기록용)")
+    ext.add_argument("--repo", default="", help="저장소 (예: platform/frameworks/base)")
+    ext.add_argument("--follow-depth", type=int, default=2, help="헬퍼 메서드를 따라갈 깊이")
 
     # 대시보드 (Streamlit)
     dash = sub.add_parser("dashboard", help="M10 Web Dashboard (Streamlit) 실행")
@@ -81,6 +93,14 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
         app = Path(__file__).parent / "dashboard" / "app.py"
         return subprocess.call([sys.executable, "-m", "streamlit", "run", str(app), "--server.port", str(args.port)])
+
+    if args.command == "extract":
+        from .analysis import extract_to_file
+        out = extract_to_file(args.sources or f"sources/{args.cve_id}", args.out or f"patterns/{args.cve_id}.json",
+                              cve_id=args.cve_id, commit=args.commit, parent=args.parent, repository=args.repo,
+                              follow_depth=args.follow_depth)
+        print(f"[extract] {args.cve_id} -> {out}")
+        return 0
 
     if args.command == "run":
         run = pipeline.run_all(args.cve_id, start=args.start, params=_params(args))
