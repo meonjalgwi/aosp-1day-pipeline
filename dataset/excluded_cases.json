@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.1",
+  "status": "draft",
+  "updated_at": "2026-11-28",
+  "reason_codes": {
+    "NATIVE_CODE": "C/C++ 네이티브 수정",
+    "KERNEL_VENDOR": "커널·벤더·비공개 수정",
+    "RESOURCE_ONLY": "리소스·설정만 변경",
+    "LARGE_REFACTOR": "대규모 리팩터링",
+    "NO_PUBLIC_COMMIT": "공개 AOSP 커밋 없음",
+    "OUT_OF_PATH": "대상 경로(frameworks/base·packages/·packages/modules/) 밖"
+  },
+  "cases": [
+    {
+      "cve": "CVE-2023-40091",
+      "commit": "0ec7b119d41adcbba23f9349e16de9e7e11683f6",
+      "repository": "platform/frameworks/base",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NATIVE_CODE",
+      "detail": "수정 파일이 cmds/incidentd/src/IncidentService.cpp(C++) 하나. 공지에는 Framework 로 분류돼 있어 경로 확인이 필요하다는 사례"
+    },
+    {
+      "cve": "CVE-2025-48549",
+      "commit": "",
+      "repository": "platform/frameworks/av",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NATIVE_CODE",
+      "detail": "CVE 레코드 커밋 5개 중 frameworks/av 2개가 네이티브라 제외. frameworks/base Java 커밋 3개(acbd37d2·00344da6·20e363e2)는 cve_inventory.json 에서 따로 분류 (#44 리뷰 반영)",
+      "commits": {
+        "platform/frameworks/av": [
+          "8c09eb1034cb3b02a66f6c241c0b9c9981998d6f",
+          "37e7f808fad105da187b021fb762a66d37c9212a"
+        ]
+      },
+      "scope": "frameworks/av 커밋 2개만 제외 (부분 제외)"
+    },
+    {
+      "cve": "CVE-2023-21029",
+      "commit": "",
+      "repository": "(공개 AOSP 커밋 없음)",
+      "support_status": "EXCLUDED",
+      "exclude_reason": "NO_PUBLIC_COMMIT",
+      "detail": "Notion 후보. CVE 레코드 참조가 Pixel 공지(2023-03)뿐이고 AOSP 커밋 링크 없음. 수정 위치는 UidObserverController.register(INTERACT_ACROSS_USERS 검사 누락)로 알려져 있으나 패치 diff 확인 불가",
+      "notion_candidate": true
+    }
+  ]
+}
