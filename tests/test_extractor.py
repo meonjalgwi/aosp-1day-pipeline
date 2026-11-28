@@ -153,3 +153,34 @@ def test_text_io_specifies_utf8():
                     and "re.search" not in line:
                 offenders.append(f"{p.name}:{i}")
     assert offenders == []
+
+
+# --- #45: 메서드를 이름으로만 구분하던 문제 -----------------------------------
+
+def test_anonymous_class_condition_is_found():
+    """CVE-2025-0086: getAuthToken 안 익명 Session.onResult 에 추가된 조기 종료 if.
+
+    같은 파일 뒤쪽(newRequestAccountAccessIntent)에도 익명 클래스 onResult(Bundle) 가 있어,
+    예전에는 키가 겹쳐 엉뚱한 메서드끼리 짝지어지고 OTHER 로 분류됐다.
+    """
+    d = Extractor().extract(FIXTURES / "CVE-2025-0086", cve_id="CVE-2025-0086")
+    vp = d["vuln_pattern"]
+    assert vp["pattern_type"] == "PRECONDITION_ADDITION"
+    (c,) = d["analysis"]["changes"]
+    assert c["class"] == "AccountManagerService.getAuthToken.new Session#0"
+    assert c["before"] == {"start_line": 3166, "end_line": 3239}
+    assert c["after"] == {"start_line": 3166, "end_line": 3245}
+    assert [(p["text"], p["line"], p["exit"]) for p in vp["precondition"]] == [("!type.equals(mAccountType)", 3193, "return")]
+    assert (vp["target_api"][0]["call"], vp["target_api"][0]["line"]) == ("new Account", 3199)
+
+
+def test_helper_with_same_name_on_other_object_is_not_followed(tmp_path):
+    """CVE-2023-40105 전체 소스: getPackageManagerInternal().getPackageUid(...) 가
+    같은 파일 내부 클래스의 getPackageUid 로 잘못 이어지던 문제."""
+    before = "  void f(String p) {\n    mStore.put(p);\n  }"
+    after = ("  void f(String p) {\n    check(p);\n    mStore.put(p);\n  }\n"
+             "  private void check(String p) {\n    if (pm().getPackageUid(p) != 1) { throw new SecurityException(); }\n  }\n"
+             "  static class Inner {\n    int getPackageUid(String p) {\n      return mPm.getPackageUid(p);\n    }\n  }")
+    d = Extractor().extract(_make(tmp_path, before, after), cve_id="T")
+    g = d["vuln_pattern"]["guard"]["locations"][0]
+    assert g["via_helper"] == "check → getPackageUid"

@@ -42,5 +42,6 @@ pytest tests/test_extractor.py                                                  
 - **`pattern_type` 규칙** (메서드 단위, 위에서부터): `GUARD_ADDITION`(사전 Guard 호출 지점이 늘어남, 같은 커밋의 헬퍼는 2단계까지 따라감) → `PRECONDITION_ADDITION`(사전엔 없지만 return/throw/continue 로 끝나는 if 추가) → `API_REPLACEMENT`(같은 이름 호출의 인자 수만 바뀜) → `OTHER`. **분류가 안 되면 추측하지 않고 `OTHER`.** `BINDER_IDENTITY` 만 늘어난 것은 Guard 추가로 보지 않는다.
 - 템플릿 대응(`analysis.suggested_template`): `GUARD_ADDITION`→T1, `PRECONDITION_ADDITION`→T2, `API_REPLACEMENT`→T3.
 - `vuln_pattern` 의 `sink` · `precondition` · `target_api` · `unsafe_api` · `safe_api` 는 위치가 여러 곳일 수 있어 **리스트**다. `source` 는 정적으로 확정하지 않고 변경 메서드 파라미터를 후보(`status: candidate`)로만 남긴다 - 확정값은 `ground_truth.json`.
+- 헬퍼는 receiver 가 없거나 `this`·헬퍼의 클래스 이름일 때만 따라간다 (`pm.getPackageUid(..)` 처럼 다른 객체 호출은 이름이 같아도 안 따라감). 익명 클래스 메서드는 `<바깥 메서드>.new <타입>#<순번>` 으로 구분한다 (#45).
 - Guard 비교는 유형 집합이 아니라 **(유형, 호출 이름) 개수**로 한다. CVE-2024-0037 `SaveUi` 처럼 같은 메서드에 같은 Guard 가 이미 있고 다른 경로에만 빠져 있던 경우를 놓치지 않기 위해서다.
 - `tests/fixtures/sources/` 는 테스트용 **발췌본**이다: 패치가 건드린 메서드만 남기고 나머지 줄은 비워 원본 줄 번호를 유지했다. A 가 전체 소스를 `sources/` 에 넣으면 같은 명령으로 `patterns/` 를 다시 만든다.

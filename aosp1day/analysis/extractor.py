@@ -265,7 +265,15 @@ class Extractor:
         c["role"] = "changed"
 
         anchor = [g.line for g in real_guards] + [x.line for x in early]
-        c["sink_candidates"] = self._sinks(a, min(anchor)) if (a and anchor) else []
+        if a and real_guards:
+            c["sink_candidates"] = self._sinks(a, min(anchor))
+        elif a and early:
+            # 추가된 조건이 막는 동작: 조건식의 변수를 쓰는 호출·객체 생성을 우선, if 블록 안 호출은 제외
+            c["sink_candidates"] = self._sinks(a, min(anchor), skip=[(x.line, x.end_line) for x in early],
+                                               prefer_vars=_identifiers(" ".join(x.text for x in early)),
+                                               include_creations=True)
+        else:
+            c["sink_candidates"] = []
         c["evidence"] = {
             "before_snippet": _lines_of(b, fd.removed, fd.removed_text),
             "after_snippet": _lines_of(a, fd.added, fd.added_text),
@@ -281,7 +289,7 @@ class Extractor:
             types: dict[str, list[str]] = {t: [] for t in self.gd.match(call)}
             if depth > 0:
                 for h in index.get(call.name, []):
-                    if h.key in seen:
+                    if h.key in seen or not _may_call(call, m, h):
                         continue
                     for sub in self._guards(h, index, depth - 1, seen):
                         if not types.get(sub.type):   # 헬퍼 경로가 있으면 근거로 남긴다
@@ -291,22 +299,29 @@ class Extractor:
                                      via=types[t]))
         return hits
 
-    def _sinks(self, a: Method, anchor_line: int, top: int = 5) -> list[dict]:
+    def _sinks(self, a: Method, anchor_line: int, top: int = 5, skip: list[tuple[int, int]] = (),
+               prefer_vars: set[str] = frozenset(), include_creations: bool = False) -> list[dict]:
         calls = a.calls()
+        cands = sorted(calls + (a.creations() if include_creations else []), key=lambda x: x.line)
         clear = [x.line for x in calls if x.name in ("clearCallingIdentity",)]
         restore = [x.line for x in calls if x.name in ("restoreCallingIdentity",)]
         regions = [(s, min([r for r in restore if r > s], default=a.end_line)) for s in clear]
         params = {n for _, n in a.params}
         out = []
-        for x in calls:
+        for x in cands:
             if x.line <= anchor_line or self.gd.is_noise(x) or self.gd.is_guard_api(x.name):
+                continue
+            if any(s <= x.line <= e for s, e in skip):
                 continue
             in_id = any(s < x.line < e for s, e in regions)
             uses = sorted({p for p in params for arg in x.args if _mentions(arg, p)})
-            score = 2 * in_id + len(uses)
+            cond = sorted({v for v in prefer_vars for arg in x.args if _mentions(arg, v)})
+            score = 2 * in_id + len(uses) + 2 * bool(cond)
             if score == 0:
                 continue
             reasons = []
+            if cond:
+                reasons.append("추가된 조건의 변수 사용: " + ", ".join(cond))
             if in_id:
                 reasons.append("clearCallingIdentity 구간 안")
             if uses:
@@ -382,7 +397,7 @@ def _range(m: Method | None) -> dict | None:
 
 
 def _cond(x) -> dict:
-    d = {"kind": x.kind, "text": x.text, "line": x.line, "early_exit": x.early_exit}
+    d = {"kind": x.kind, "text": x.text, "line": x.line, "end_line": x.end_line, "early_exit": x.early_exit}
     if x.exit_kind:
         d["exit"] = x.exit_kind
     return d
@@ -431,6 +446,30 @@ def _replaced(removed: list[Call], added: list[Call]) -> list[dict]:
                 rem_by[a.name].remove(r)
                 break
     return out
+
+
+def _may_call(call: Call, caller: Method, helper: Method) -> bool:
+    """이름이 같은 메서드라도 이 호출이 실제로 그 헬퍼를 부를 수 있는 경우만 따라간다 (#45).
+
+    - receiver 없음 / this / super: 같은 파일의 메서드
+    - receiver 가 헬퍼의 클래스 이름 (예: Helper.sanitizeSlice): 그 클래스의 static 메서드
+    - 그 밖의 객체 호출(예: getPackageManagerInternal().getPackageUid(...))은 다른 타입일 수 있어 따라가지 않는다
+    """
+    r = call.receiver
+    if r in ("", "this", "super"):
+        return helper.file == caller.file
+    return r.split(".")[-1] == helper.simple_cls
+
+
+_JAVA_WORDS = {"null", "true", "false", "this", "super", "new", "instanceof", "equals", "isEmpty",
+               "length", "size", "contains", "get", "getType"}
+
+
+def _identifiers(text: str) -> set[str]:
+    """조건식에서 변수로 보이는 이름 (메서드 호출 이름·상수·키워드 제외)."""
+    import re
+    names = set(re.findall(r"(?<![\w.])([a-z_]\w*)(?!\s*\()", text))
+    return {n for n in names if n not in _JAVA_WORDS}
 
 
 def _mentions(arg: str, name: str) -> bool:

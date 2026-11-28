@@ -59,6 +59,7 @@ class Condition:
     line: int
     early_exit: bool    # then 쪽이 return/throw/continue/break 로 끝남
     exit_kind: str = ""
+    end_line: int = 0   # if 문 전체(then 블록 포함)의 끝 줄
 
 
 @dataclass
@@ -71,6 +72,7 @@ class Method:
     end_line: int
     node: Node = field(repr=False)
     source: bytes = field(repr=False)
+    dup: int = 0        # 같은 키가 파일 안에 또 있을 때 등장 순번
 
     @property
     def signature(self) -> str:
@@ -78,7 +80,14 @@ class Method:
 
     @property
     def key(self) -> str:
-        return f"{self.cls}.{self.signature}"
+        base = f"{self.cls}.{self.signature}"
+        return f"{base}#{self.dup}" if self.dup else base
+
+    @property
+    def simple_cls(self) -> str:
+        """가장 안쪽 이름 있는 클래스 이름 (Helper.sanitizeSlice 의 Helper 비교용)."""
+        named = [p for p in self.cls.split(".") if p and not p.startswith("new ") and "#" not in p]
+        return named[-1] if named else ""
 
     @property
     def text(self) -> str:
@@ -90,6 +99,10 @@ class Method:
 
     def calls(self) -> list[Call]:
         return list(_iter_calls(self.node, self.source))
+
+    def creations(self) -> list[Call]:
+        """``new T(...)`` 객체 생성 (익명 클래스 생성은 제외). 이름은 ``new T``."""
+        return list(_iter_creations(self.node, self.source))
 
     def conditions(self) -> list[Condition]:
         return list(_iter_conditions(self.node, self.source))
@@ -129,13 +142,39 @@ def _params(node: Node, src: bytes) -> list[tuple[str, str]]:
 
 
 def _class_path(node: Node, src: bytes) -> str:
+    """바깥 클래스부터 이은 경로. 익명 클래스는 ``<바깥 메서드>.new <타입>#<순번>`` 으로 구분한다.
+
+    익명 클래스 메서드(예: 여러 ``Session.onResult``)가 같은 클래스·시그니처로 겹치면
+    패치 전·후 짝짓기가 엉뚱한 메서드끼리 되므로, 바깥 메서드 이름과 그 안에서의 순번을 붙인다.
+    """
     names = []
     cur = node.parent
     while cur is not None:
         if cur.type in _CLASS_TYPES:
             names.append(_txt(src, cur.child_by_field_name("name")))
+        elif cur.type == "object_creation_expression" and any(c.type == "class_body" for c in cur.children):
+            names.append(_anon_label(cur, src))
         cur = cur.parent
     return ".".join(reversed(names))
+
+
+def _anon_label(creation: Node, src: bytes) -> str:
+    typ = _simple_type(_txt(src, creation.child_by_field_name("type")))
+    owner = creation.parent
+    while owner is not None and owner.type not in _METHOD_TYPES and owner.type not in _CLASS_TYPES:
+        owner = owner.parent
+    owner_name = _txt(src, owner.child_by_field_name("name")) if owner is not None else ""
+    # 같은 바깥 메서드 안에서 같은 타입 익명 클래스의 순번
+    stack = [owner] if owner is not None else []
+    order = []
+    while stack:
+        n = stack.pop()
+        if n.type == "object_creation_expression" and any(c.type == "class_body" for c in n.children) \
+                and _simple_type(_txt(src, n.child_by_field_name("type"))) == typ:
+            order.append(n.start_byte)
+        stack.extend(reversed(n.children))
+    k = sorted(order).index(creation.start_byte) if creation.start_byte in order else 0
+    return f"{owner_name}.new {typ}#{k}"
 
 
 def parse_methods(path: Path | str, rel: str = "") -> list[Method]:
@@ -157,6 +196,15 @@ def parse_methods_src(src: bytes, rel: str) -> list[Method]:
                               node=n, source=src))
         stack.extend(reversed(n.children))
     out.sort(key=lambda m: m.start_line)
+    # 그래도 키가 겹치면(같은 단순 타입의 오버로드 등) 등장 순서로 구분
+    seen: dict[str, int] = {}
+    for m in out:
+        k = m.key
+        if k in seen:
+            seen[k] += 1
+            m.dup = seen[k]
+        else:
+            seen[k] = 0
     return out
 
 
@@ -198,8 +246,19 @@ def _iter_calls(root: Node, src: bytes):
                        receiver=normalize(_txt(src, n.child_by_field_name("object"))),
                        args=args, line=n.start_point[0] + 1,
                        text=normalize(_txt(src, n)), in_condition=_in_condition(n))
-        elif n.type == "object_creation_expression":
-            pass
+        stack.extend(reversed(n.children))
+
+
+def _iter_creations(root: Node, src: bytes):
+    stack = [root]
+    while stack:
+        n = stack.pop()
+        if n.type == "object_creation_expression" and not any(c.type == "class_body" for c in n.children):
+            args_node = n.child_by_field_name("arguments")
+            args = [normalize(_txt(src, a)) for a in args_node.named_children] if args_node else []
+            yield Call(name="new " + _simple_type(_txt(src, n.child_by_field_name("type"))), receiver="",
+                       args=args, line=n.start_point[0] + 1, text=normalize(_txt(src, n)),
+                       in_condition=_in_condition(n))
         stack.extend(reversed(n.children))
 
 
@@ -227,5 +286,5 @@ def _iter_conditions(root: Node, src: bytes):
                 text = text[1:-1].strip()
             exit_kind = _exit_of(n.child_by_field_name("consequence")) if n.type == "if_statement" else ""
             yield Condition(kind=n.type.split("_")[0], text=text, line=n.start_point[0] + 1,
-                            early_exit=bool(exit_kind), exit_kind=exit_kind)
+                            early_exit=bool(exit_kind), exit_kind=exit_kind, end_line=n.end_point[0] + 1)
         stack.extend(reversed(n.children))
