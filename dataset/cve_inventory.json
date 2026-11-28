@@ -119,7 +119,7 @@
         "changed_files": [
           "services/core/java/com/android/server/accounts/AccountManagerService.java"
         ],
-        "support_status": "READY",
+        "support_status": "NEEDS_WORK",
         "exclude_reason": ""
       },
       "pattern_type": "PRECONDITION_ADDITION",
@@ -134,7 +134,7 @@
       ],
       "precondition": "!type.equals(mAccountType) 이면 onError 후 return",
       "target_api": "new Account(name, type) → 토큰 저장",
-      "notes": "B담당 정리에서는 AUTH_PERMISSION 으로 봤지만 diff 는 권한 검사가 아니라 인증자 응답의 계정 타입 확인 → PRECONDITION_ADDITION",
+      "notes": "B담당 정리에서는 AUTH_PERMISSION 으로 봤지만 diff 는 권한 검사가 아니라 인증자 응답의 계정 타입 확인 → PRECONDITION_ADDITION / [11/28 #44 리뷰] 수동 분류와 분류기 결과가 달라 팀 확정 전까지 READY → NEEDS_WORK. 분류기 쪽 원인(익명 클래스 메서드 구분)은 #45 에서 수정 예정. #48(fix/45-method-identity, ea44e7c)로 돌려 보면 PRECONDITION_ADDITION 으로 수동 분류와 일치 → #48 머지 후 READY 재검토 가능",
       "notion_candidate": true,
       "notion_commit": {
         "check": "B담당 정리(조서진 Notion 내용) 커밋과 동일"
@@ -298,7 +298,7 @@
         "changed_files": [
           "services/companion/java/com/android/server/companion/CompanionDeviceManagerService.java"
         ],
-        "support_status": "READY",
+        "support_status": "NEEDS_WORK",
         "exclude_reason": ""
       },
       "pattern_type": "API_REPLACEMENT",
@@ -314,7 +314,7 @@
       ],
       "unsafe_api": "override Binder.onShellCommand(FileDescriptor...)",
       "safe_api": "override Binder.handleShellCommand(ParcelFileDescriptor...)",
-      "notes": "직접 구현한 onShellCommand(호출자 권한 검사 우회)를 handleShellCommand 오버라이드로 교체 → 상위 Binder.onShellCommand 의 권한 검사를 타게 됨. 의미상 위험 API → 안전 API 교체. 단 호출 교체가 아니라 오버라이드 교체라 M2 분류기는 OTHER 로 낼 수 있음(확인 필요)",
+      "notes": "직접 구현한 onShellCommand(호출자 권한 검사 우회)를 handleShellCommand 오버라이드로 교체 → 상위 Binder.onShellCommand 의 권한 검사를 타게 됨. 의미상 위험 API → 안전 API 교체. 단 호출 교체가 아니라 오버라이드 교체라 M2 분류기는 OTHER 로 낼 수 있음(확인 필요) / [11/28 #44 리뷰] 수동 분류와 분류기 결과가 달라 팀 확정 전까지 READY → NEEDS_WORK",
       "notion_commit": {
         "check": "B담당 정리(조서진 Notion 내용) 커밋과 동일"
       },
@@ -456,12 +456,93 @@
       },
       "classifier_pattern_type": "API_REPLACEMENT",
       "pattern_type_agrees": false
+    },
+    {
+      "patch": {
+        "cve": "CVE-2025-48549",
+        "commit": "acbd37d21c2feffb6d64e669b956d59a6062b751",
+        "parent_commit": "8b660e88700541ca70a01c7b25a52587ec65411f",
+        "repository": "platform/frameworks/base",
+        "changed_files": [
+          "services/core/java/com/android/server/pm/permission/PermissionManagerService.java",
+          "packages/SystemUI/src/com/android/systemui/appops/AppOpsControllerImpl.java",
+          "packages/SystemUI/tests/src/com/android/systemui/appops/AppOpsControllerTest.java"
+        ],
+        "support_status": "NEEDS_WORK",
+        "exclude_reason": ""
+      },
+      "pattern_type": "OTHER",
+      "guard_type": null,
+      "language": "Java",
+      "bulletin": "2025-09",
+      "role": "type_gap",
+      "notion_candidate": false,
+      "commit_subject": "[RESTRICT AUTOMERGE] appop: Finish all when last in chain fail",
+      "change_id": "I16f82c9438083f8f64f84ba710f97539960009f1",
+      "changed_methods": [
+        "PermissionManagerService.checkRuntimePermission (modified)",
+        "PermissionManagerService.performOpTransaction (modified)",
+        "AppOpsControllerImpl.isAnyRecordingPausedLocked → isAllRecordingPausedLocked (이름 변경·조건 반전)",
+        "AppOpsControllerImpl.updateActives (modified, 호출 대상 변경)",
+        "AppOpsControllerImpl.updateSensorDisabledStatus (modified, 호출 대상 변경)",
+        "AppOpsControllerTest.verifyUnPausedSentActive · verifyAudioPausedSentInactive (테스트, modified)"
+      ],
+      "commits": [
+        {
+          "commit": "acbd37d21c2feffb6d64e669b956d59a6062b751",
+          "parent_commit": "8b660e88700541ca70a01c7b25a52587ec65411f",
+          "subject": "[RESTRICT AUTOMERGE] appop: Finish all when last in chain fail",
+          "change_id": "I16f82c9438083f8f64f84ba710f97539960009f1",
+          "changed_files": [
+            "services/core/java/com/android/server/pm/permission/PermissionManagerService.java"
+          ],
+          "pattern_type": "OTHER",
+          "classifier_pattern_type": "OTHER",
+          "summary": "checkRuntimePermission 에서 권한 확인이 체인 중간에 실패하면 앞 단계에서 이미 시작한 프록시 op 를 finishDataDelivery 로 정리하는 코드 추가 (검사 추가가 아니라 상태 정리)"
+        },
+        {
+          "commit": "00344da68fce6ec4f7a1bf36f0ea3797805f00ce",
+          "parent_commit": "acbd37d21c2feffb6d64e669b956d59a6062b751",
+          "subject": "[RESTRICT AUTOMERGE] Fix recording config mic indicator suppression",
+          "change_id": "I8b1fe0bc2a4474467a1ef2510b29c5164e32aad8",
+          "changed_files": [
+            "packages/SystemUI/src/com/android/systemui/appops/AppOpsControllerImpl.java",
+            "packages/SystemUI/tests/src/com/android/systemui/appops/AppOpsControllerTest.java"
+          ],
+          "pattern_type": "OTHER",
+          "classifier_pattern_type": "API_REPLACEMENT (테스트 파일 제외 시 OTHER)",
+          "summary": "SystemUI 마이크 표시 숨김 조건을 isAnyRecordingPausedLocked → isAllRecordingPausedLocked 로 바꿈 (하나라도 무음 → 전부 무음). 분류기는 AppOpsControllerTest.java 를 포함하면 테스트 메서드 때문에 API_REPLACEMENT, 제외하면 OTHER"
+        },
+        {
+          "commit": "20e363e2225843ff3cc7d6bea05ae2f4db83b408",
+          "parent_commit": "00344da68fce6ec4f7a1bf36f0ea3797805f00ce",
+          "subject": "[RESTRICT AUTOMERGE] [appops] Preflight skip datasource validation",
+          "change_id": "I509e7f8da501f5e32d336adb412662e078eab500",
+          "changed_files": [
+            "services/core/java/com/android/server/pm/permission/PermissionManagerService.java"
+          ],
+          "pattern_type": "OTHER",
+          "classifier_pattern_type": "OTHER",
+          "summary": "performOpTransaction 의 사전 확인(preflight)에서 skipProxyOperation 이고 singleReceiverFromDatasource 가 아니면 첫 단계 확인을 건너뜀 (데이터 전달 경로와 판정 일치, 조건 변경)"
+        }
+      ],
+      "classifier_pattern_type": "API_REPLACEMENT",
+      "pattern_type_agrees": false,
+      "notes": "[11/28 #44 리뷰 반영] CVE 레코드 커밋 5개 중 frameworks/av 2개(C++)는 excluded_cases.json 에 두고, frameworks/base Java 커밋 3개를 따로 분류. 세 커밋 모두 같은 Bug(293603271, 325912429)로 연달아 들어간 수정이며 검사 추가형이 아니라 상태 정리·조건 변경이라 수동 분류는 OTHER. 분류기는 테스트 포함 시 API_REPLACEMENT 라 불일치(팀 결정 항목). 대표 커밋은 첫 커밋(acbd37d2)",
+      "classifier_note": "커밋 3개를 합친 패치(8b660e88 → 20e363e2)에 테스트 파일까지 넣으면 API_REPLACEMENT, AppOpsControllerTest.java 를 빼면 OTHER. 다른 항목과 같은 입력 규칙(테스트 포함)에 따라 API_REPLACEMENT 로 기록"
     }
   ],
   "notion_source": "김현아의 Notion / 먼잘귀 / 후보 CVE 조사 템플릿 (10건)",
   "field_notes": {
     "pattern_type": "A(조서진)가 diff 를 보고 붙인 수동 분류. 팀 합의 전 초안",
-    "classifier_pattern_type": "B 추출기(PR #35, aosp1day extract)를 같은 전·후 소스에 돌린 결과",
+    "classifier_pattern_type": "B 추출기(위 classifier.commit)를 같은 전·후 소스에 돌린 결과",
     "pattern_type_agrees": "false 인 건은 주말 점검에서 팀이 확정"
-  }
+  },
+  "classifier": {
+    "tool": "aosp1day extract (PR #35, feature/b-patch-extractor)",
+    "commit": "637af28",
+    "checked_also": "bc9a751 (UTF-8 수정만, 15건 분류 결과 동일)",
+    "input": "패치가 바꾼 Java 파일 전체 (테스트 파일 포함 여부가 결과에 영향을 준 경우는 notes 에 기록)"
+  },
+  "status_rule": "수동 분류와 분류기 결과가 다르면 팀이 확정할 때까지 NEEDS_WORK (#44 리뷰, A안)"
 }
